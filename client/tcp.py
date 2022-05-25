@@ -37,18 +37,28 @@ class TCP:
         return nombre
 
     def enviarArchivo(self, ubicacion):
-        sleep(0.1)
+        sleep(0.05)
         tam = os.path.getsize(ubicacion)
         paquetes = str(int(tam/self.__chunk))
         self.__sock.send(paquetes.encode())
 
-        sleep(0.1)
+        sleep(0.05)
         with open(ubicacion, 'rb') as archivo:
             info = archivo.read(self.__chunk)
             while info:
                 self.__sock.send(info)
                 info = archivo.read(self.__chunk)
                 sleep(0.05)
+        archivo.close()
+
+    def recibirArchivo(self, ubicacion):
+        with open(ubicacion, 'wb') as archivo:
+            while True:
+                info = self.__sock.recv(self.__chunk)
+                archivo.write(info)
+
+                if len(info) < self.__chunk:
+                    break
         archivo.close()
 
     def cd(self, directorio):
@@ -84,6 +94,15 @@ class TCP:
             else:
                 self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
 
+    def sendFileTo(self, cmd):
+        if re.search("-d", cmd):
+            destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+            self.recibirArchivo(destino)
+
+        else:
+            destino = self.__sock.recv(1024).decode()
+            self.recibirArchivo(destino)
+
     def shell(self):
         try:
             while True:
@@ -115,6 +134,13 @@ class TCP:
                 elif cmd.lower()[:3] == "sff":
                     try:
                         self.sendFileFrom(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:3] == "sft":
+                    try:
+                        self.sendFileTo(cmd)
 
                     except:
                         continue

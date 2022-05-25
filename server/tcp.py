@@ -39,6 +39,30 @@ class TCP:
         print(Fore.GREEN + "\u250c\u2500\u2500(" + Fore.BLUE + f"{self.__userName}~{self.__hostName}" + Fore.GREEN + ")-[" + Fore.WHITE + self.__currentDir + Fore.GREEN + ']')
         print(Fore.GREEN + "\u2514\u2500" + Fore.BLUE + "> ", end='')
 
+    def getNombre(self, ubicacion):
+        nombre = os.path.abspath(ubicacion)
+        nombre = os.path.basename(nombre)
+        return nombre
+
+    def enviarArchivo(self, ubicacion):
+        tam = os.path.getsize(ubicacion)
+        paquetes = int(tam/self.__chunk)
+        print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
+
+        sleep(0.1)
+        i = 1
+        with open(ubicacion, 'rb') as archivo:
+            info = archivo.read(self.__chunk)
+            while info:
+                self.__conexion.send(info)
+                info = archivo.read(self.__chunk)
+                print(f"Paquete {i} enviado", end='\r')
+                i += 1
+                sleep(0.05)
+        archivo.close()
+
+        print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" enviado")
+
     def recibirArchivo(self, ubicacion):
         paquetes = self.__conexion.recv(1024).decode()
         print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
@@ -88,7 +112,7 @@ class TCP:
         if msg[:6] != "error:":
             self.__currentDir = msg
         else:
-            print(Fore.RED + f"[-] {msg}")
+            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
 
     def sendFileFrom(self, cmd):
         if re.search("-d", cmd):
@@ -100,7 +124,7 @@ class TCP:
                 self.recibirArchivo(destino)
 
             else:
-                print(Fore.RED + f"[-] {msg}")
+                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
 
         else:
             self.__conexion.send(cmd.encode())
@@ -111,7 +135,32 @@ class TCP:
                 self.recibirArchivo(destino)
 
             else:
-                print(Fore.RED + f"[-] {msg}")
+                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
+    def sendFileTo(self, cmd):
+        if re.search("-d", cmd):
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+
+            if os.path.isfile(origen):
+                self.__conexion.send(cmd.encode())
+                self.enviarArchivo(origen)
+
+            else:
+                print(Fore.YELLOW + f"[!] Archivo \"{origen}\" no encontrado")
+
+        else:
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+
+            if os.path.isfile(origen):
+                self.__conexion.send(cmd.encode())
+                nombre = self.getNombre(origen)
+
+                sleep(0.05)
+                self.__conexion.send(nombre.encode())
+                self.enviarArchivo(origen)
+
+            else:
+                print(Fore.YELLOW + f"[!] Archivo \"{origen}\" no encontrado")
 
     def shell(self):
         try:
@@ -152,7 +201,7 @@ class TCP:
                         self.cd(cmd)
 
                     except:
-                        print(Fore.RED + "[-] Error de sintaxis (cd)")
+                        print(Fore.RED + "[-] Error de proceso (cd)")
 
                 elif cmd.lower()[:3] == "sff":
                     try:
@@ -160,10 +209,20 @@ class TCP:
                             self.sendFileFrom(cmd)
 
                         else:
-                            print(Fore.YELLOW + f"[!] Falta el parametro de origen (-o)")
+                            print(Fore.YELLOW + f"[!] Falta del parametro de origen (-o)")
 
                     except:
-                        print(Fore.RED + "[-] Error de sintaxis (sff)")
+                        print(Fore.RED + "[-] Error de proceso (sff)")
+
+                elif cmd.lower()[:3] == "sft":
+                    try:
+                        if re.search("-o", cmd):
+                            self.sendFileTo(cmd)
+                        else:
+                            print(Fore.RED + "[!] Falta del parametro de origen (-o)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (sft)")
 
                 else:
                     try:
