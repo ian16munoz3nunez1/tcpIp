@@ -1,6 +1,10 @@
 import socket
 import os
 import re
+import pickle
+import struct
+import cv2
+import numpy
 from time import sleep
 from colorama import init
 from colorama.ansi import Fore
@@ -43,6 +47,37 @@ class TCP:
         nombre = os.path.abspath(ubicacion)
         nombre = os.path.basename(nombre)
         return nombre
+
+    def escalar(self, height, width):
+        if height > width:
+            escala = 500/height
+        elif width > height:
+            escala = 400/width
+        else:
+            escala = (height+width)/2
+            escala = 500/escala
+
+        return escala
+
+    def recibirDatos(self):
+        data = b''
+        size = struct.calcsize('Q')
+        while len(data) < size:
+            info = self.__conexion.recv(self.__chunk)
+            data += info
+
+        dataSize = data[:size]
+        data = data[size:]
+        byteSize = struct.unpack('Q', dataSize)[0]
+
+        while len(data) < byteSize:
+            data += self.__conexion.recv(self.__chunk)
+
+        info = data[:byteSize]
+        data = data[byteSize:]
+        info = pickle.loads(info)
+
+        return info
 
     def enviarArchivo(self, ubicacion):
         tam = os.path.getsize(ubicacion)
@@ -162,6 +197,33 @@ class TCP:
             else:
                 print(Fore.YELLOW + f"[!] Archivo \"{origen}\" no encontrado")
 
+    def image(self, cmd):
+        self.__conexion.send(cmd.encode())
+
+        msg = self.__conexion.recv(1024).decode()
+
+        if msg[:6] != "error:":
+            nombre = self.__conexion.recv(1024).decode()
+            info = self.recibirDatos()
+
+            matriz = numpy.frombuffer(info, dtype=numpy.uint8)
+            imagen = cv2.imdecode(matriz, -1)
+
+            if re.search("-t", cmd):
+                escala = float(re.findall("-t[= ]([0-9.].*)", cmd)[0])
+            else:
+                height, width = imagen.shape[:2]
+                escala = self.escalar(height, width)
+            imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
+            print(f"Escala: {escala}")
+
+            cv2.imshow(f"{self.__addr[0]}: {nombre}", imagen)
+            cv2.waitKey()
+            cv2.destroyAllWindows()
+
+        else:
+            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
     def shell(self):
         try:
             while True:
@@ -223,6 +285,16 @@ class TCP:
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (sft)")
+
+                elif cmd.lower()[:3] == "img":
+                    try:
+                        if re.search("-i", cmd):
+                            self.image(cmd)
+                        else:
+                            print(Fore.YELLOW + f"[!] Falta del parametro imagen (-i)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (img)")
 
                 else:
                     try:

