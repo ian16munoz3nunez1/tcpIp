@@ -232,32 +232,28 @@ class TCP:
                 self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
 
     def sendDirTo(self, cmd):
-        try:
-            if re.search("-d", cmd):
-                if re.search("-i", cmd):
-                    destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
-                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                    if index <= 0:
-                        index = 1
-                else:
-                    destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        if re.search("-d", cmd):
+            if re.search("-i", cmd):
+                destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
                     index = 1
-
-                self.recibirDirectorio(destino, index)
-
             else:
-                if re.search("-i", cmd):
-                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                    if index <= 0:
-                        index = 1
-                else:
+                destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                index = 1
+
+            self.recibirDirectorio(destino, index)
+
+        else:
+            if re.search("-i", cmd):
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
                     index = 1
+            else:
+                index = 1
 
-                destino = self.__sock.recv(1024).decode()
-                self.recibirDirectorio(destino, index)
-
-        except Exception as e:
-            print(e)
+            destino = self.__sock.recv(1024).decode()
+            self.recibirDirectorio(destino, index)
 
     def shell(self):
         try:

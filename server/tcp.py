@@ -325,37 +325,33 @@ class TCP:
                 print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
 
     def sendDirTo(self, cmd):
-        try:
-            if re.search("-d", cmd):
-                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
-                if re.search("-i", cmd):
-                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                    if index <= 0:
-                        index = 1
-                else:
+        if re.search("-d", cmd):
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+            if re.search("-i", cmd):
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
                     index = 1
-
-                self.__conexion.send(cmd.encode())
-                self.enviarDirectorio(origen, index)
-
             else:
-                if re.search("-i", cmd):
-                    origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
-                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                    if index <= 0:
-                        index = 1
-                else:
-                    origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                index = 1
+
+            self.__conexion.send(cmd.encode())
+            self.enviarDirectorio(origen, index)
+
+        else:
+            if re.search("-i", cmd):
+                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
+                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                if index <= 0:
                     index = 1
+            else:
+                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                index = 1
 
-                self.__conexion.send(cmd.encode())
-                sleep(0.05)
-                destino = self.getNombre(origen)
-                self.__conexion.send(destino.encode())
-                self.enviarDirectorio(origen, index)
-
-        except Exception as e:
-            print(e)
+            self.__conexion.send(cmd.encode())
+            sleep(0.05)
+            destino = self.getNombre(origen)
+            self.__conexion.send(destino.encode())
+            self.enviarDirectorio(origen, index)
 
     def shell(self):
         try:
