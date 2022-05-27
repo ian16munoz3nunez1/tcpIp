@@ -115,6 +115,46 @@ class TCP:
         archivo.close()
         print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
 
+    def enviarDirectorio(self, origen, index):
+        archivos = []
+        for i in os.listdir(origen):
+            archivo = f"{origen}/{i}"
+            if os.path.isfile(archivo):
+                archivos.append(archivo)
+        tam = len(archivos)
+        print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
+
+        sleep(0.1)
+        self.__conexion.send(str(tam).encode())
+
+        if index > tam:
+            index = 1
+        while index <= tam:
+            nombre = self.getNombre(archivos[index-1])
+            peso = os.path.getsize(archivos[index-1])
+            paquetes = int(peso/self.__chunk)
+
+            print(Fore.MAGENTA + f"[?] {index}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
+            res = input()
+
+            sleep(0.05)
+            if len(res) == 0 or res.upper() == 'S':
+                self.__conexion.send('S'.encode())
+                sleep(0.05)
+                self.__conexion.send(nombre.encode())
+                self.enviarArchivo(archivos[index-1])
+
+            elif res.lower() == 'q' or res.lower() == "quit":
+                self.__conexion.send("quit".encode())
+                break
+
+            else:
+                self.__conexion.send('N'.encode())
+                pass
+
+            index += 1
+            sleep(0.05)
+
     def recibirDirectorio(self, destino, index):
         if not os.path.isdir(destino):
             os.mkdir(destino)
@@ -284,6 +324,39 @@ class TCP:
             else:
                 print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
 
+    def sendDirTo(self, cmd):
+        try:
+            if re.search("-d", cmd):
+                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+                if re.search("-i", cmd):
+                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                    if index <= 0:
+                        index = 1
+                else:
+                    index = 1
+
+                self.__conexion.send(cmd.encode())
+                self.enviarDirectorio(origen, index)
+
+            else:
+                if re.search("-i", cmd):
+                    origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
+                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                    if index <= 0:
+                        index = 1
+                else:
+                    origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                    index = 1
+
+                self.__conexion.send(cmd.encode())
+                sleep(0.05)
+                destino = self.getNombre(origen)
+                self.__conexion.send(destino.encode())
+                self.enviarDirectorio(origen, index)
+
+        except Exception as e:
+            print(e)
+
     def shell(self):
         try:
             while True:
@@ -366,6 +439,16 @@ class TCP:
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (sdf)")
+
+                elif cmd.lower()[:3] == "sdt":
+                    try:
+                        if re.search("-o", cmd):
+                            self.sendDirTo(cmd)
+                        else:
+                            print(Fore.YELLOW + f"[!] Falta del parametro origen (-o)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (sdt)")
 
                 else:
                     try:

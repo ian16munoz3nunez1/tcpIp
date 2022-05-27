@@ -110,6 +110,27 @@ class TCP:
             index += 1
             sleep(0.05)
 
+    def recibirDirectorio(self, destino, index):
+        if not os.path.isdir(destino):
+            os.mkdir(destino)
+
+        tam = int(self.__sock.recv(1024).decode())
+
+        if index > tam:
+            index = 1
+        while index <= tam:
+            res = self.__sock.recv(1024).decode()
+
+            if res == 'S':
+                nombre = self.__sock.recv(1024).decode()
+                self.recibirArchivo(f"{destino}/{nombre}")
+            elif res == "quit":
+                break
+            else:
+                pass
+
+            index += 1
+
     def cd(self, directorio):
         if os.path.isdir(directorio):
             os.chdir(directorio)
@@ -210,6 +231,34 @@ class TCP:
             else:
                 self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
 
+    def sendDirTo(self, cmd):
+        try:
+            if re.search("-d", cmd):
+                if re.search("-i", cmd):
+                    destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
+                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                    if index <= 0:
+                        index = 1
+                else:
+                    destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                    index = 1
+
+                self.recibirDirectorio(destino, index)
+
+            else:
+                if re.search("-i", cmd):
+                    index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
+                    if index <= 0:
+                        index = 1
+                else:
+                    index = 1
+
+                destino = self.__sock.recv(1024).decode()
+                self.recibirDirectorio(destino, index)
+
+        except Exception as e:
+            print(e)
+
     def shell(self):
         try:
             while True:
@@ -262,6 +311,13 @@ class TCP:
                 elif cmd.lower()[:3] == "sdf":
                     try:
                         self.sendDirFrom(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:3] == "sdt":
+                    try:
+                        self.sendDirTo(cmd)
 
                     except:
                         continue
