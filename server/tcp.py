@@ -129,13 +129,18 @@ class TCP:
 
         if index > tam:
             index = 1
+        subidos = 0
         while index <= tam:
             nombre = self.getNombre(archivos[index-1])
             peso = os.path.getsize(archivos[index-1])
             paquetes = int(peso/self.__chunk)
 
-            print(Fore.MAGENTA + f"[?] {index}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
-            res = input()
+            if paquetes != 0:
+                print(Fore.MAGENTA + f"\n[?] {index}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
+                res = input()
+            else:
+                print(Fore.YELLOW + f"\n[!] {index}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
+                res = 'N'
 
             sleep(0.05)
             if len(res) == 0 or res.upper() == 'S':
@@ -143,6 +148,7 @@ class TCP:
                 sleep(0.05)
                 self.__conexion.send(nombre.encode())
                 self.enviarArchivo(archivos[index-1])
+                subidos += 1
 
             elif res.lower() == 'q' or res.lower() == "quit":
                 self.__conexion.send("quit".encode())
@@ -150,29 +156,37 @@ class TCP:
 
             else:
                 self.__conexion.send('N'.encode())
-                pass
 
             index += 1
             sleep(0.05)
+
+        print(Fore.GREEN + f"[+] {subidos} archivos subidos de {tam}")
 
     def recibirDirectorio(self, destino, index):
         if not os.path.isdir(destino):
             os.mkdir(destino)
         tam = int(self.__conexion.recv(1024).decode())
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
+
         if index > tam:
             index = 1
-
+        bajados = 0
         while index <= tam:
             info = self.__conexion.recv(1024).decode()
             info = info.split('\n')
             nombre, paquetes = info[:2]
 
-            print(Fore.MAGENTA + f"[?] {index}. Bajar \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
-            res = input()
+            if paquetes != '0':
+                print(Fore.MAGENTA + f"\n[?] {index}. Bajar \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
+                res = input()
+            else:
+                print(Fore.YELLOW + f"\n[!] {index}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
+                res = 'N'
+
             if len(res) == 0 or res.upper() == 'S':
                 self.__conexion.send('S'.encode())
                 self.recibirArchivo(f"{destino}/{nombre}")
+                bajados += 1
             elif res.lower() == 'q' or res.lower() == "quit":
                 self.__conexion.send("quit".encode())
                 break
@@ -180,6 +194,8 @@ class TCP:
                 self.__conexion.send('N'.encode())
 
             index += 1
+
+        print(Fore.GREEN + f"[+] {bajados} archivos descargados de {tam}")
 
     def local(self, cmd):
         if cmd.lower()[:2] == "cd":
@@ -203,8 +219,10 @@ class TCP:
             self.__conexion.close()
             self.__sock.close()
             print(Fore.YELLOW + f"[!] Conexion terminada con {self.__addr[0]}")
+            return True
         else:
             print(Fore.YELLOW + f"[!] Operacion cancelada")
+            return False
 
     def cd(self, cmd):
         self.__conexion.send(cmd.encode())
@@ -359,7 +377,10 @@ class TCP:
                 self.terminal()
                 cmd = input()
 
-                if cmd[0] == '!':
+                if cmd == '' or cmd.replace(' ', '') == '':
+                    print(Fore.YELLOW + f"[!] Comando invalido")
+
+                elif cmd[0] == '!':
                     try:
                         self.local(cmd[1:])
 
@@ -371,8 +392,9 @@ class TCP:
 
                 elif cmd.lower() == "exit":
                     try:
-                        self.exit(cmd)
-                        break
+                        salir = self.exit(cmd)
+                        if salir:
+                            break
 
                     except:
                         print(Fore.RED + "[-] Error al terminar la conexion")
@@ -448,19 +470,15 @@ class TCP:
 
                 else:
                     try:
-                        if cmd == '' or cmd.replace(' ', '') == '':
-                            print(Fore.YELLOW + "[!] Comando no valido")
+                        self.__conexion.send(cmd.encode())
 
-                        else:
-                            self.__conexion.send(cmd.encode())
+                        while True:
+                            info = self.__conexion.recv(self.__chunk)
+                            info = ''.join([chr(i) for i in info])
+                            print(info)
 
-                            while True:
-                                info = self.__conexion.recv(self.__chunk)
-                                info = ''.join([chr(i) for i in info])
-                                print(info)
-
-                                if len(info) < self.__chunk:
-                                    break
+                            if len(info) < self.__chunk:
+                                break
 
                     except:
                         print(Fore.RED + "[-] Error al ejecutar el comando")
