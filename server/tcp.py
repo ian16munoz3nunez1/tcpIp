@@ -33,6 +33,7 @@ class TCP:
         print(Fore.GREEN + f"[+] Conexion establecida con {self.__addr[0]}")
 
         sleep(0.05)
+        self.initDir = os.getcwd()
         self.__conexion.send(str(self.__chunk).encode())
         info = self.__conexion.recv(1024).decode()
         info = info.split('\n')
@@ -148,7 +149,7 @@ class TCP:
             peso = os.path.getsize(archivos[index-1])
             paquetes = int(peso/self.__chunk)
 
-            if paquetes != 0:
+            if peso > 0:
                 print(Fore.MAGENTA + f"\n[?] {index}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
                 res = input()
             else:
@@ -187,9 +188,10 @@ class TCP:
         while index <= tam:
             info = self.__conexion.recv(1024).decode()
             info = info.split('\n')
-            nombre, paquetes = info[:2]
+            nombre, paquetes, peso = info[:3]
+            peso = int(peso)
 
-            if paquetes != '0':
+            if peso > 0:
                 print(Fore.MAGENTA + f"\n[?] {index}. Bajar \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
                 res = input()
             else:
@@ -231,7 +233,7 @@ class TCP:
             self.__conexion.send(cmd.encode())
             self.__conexion.close()
             self.__sock.close()
-            print(Fore.YELLOW + f"[!] Conexion terminada con {self.__addr[0]}")
+            print(Fore.YELLOW + f"[!] Conexion terminada con {self.__userName}@{self.__addr[0]}")
             return True
         else:
             print(Fore.YELLOW + f"[!] Operacion cancelada")
@@ -244,7 +246,7 @@ class TCP:
         if msg[:6] != "error:":
             self.__currentDir = msg
         else:
-            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendFileFrom(self, cmd):
         if re.search("-d", cmd):
@@ -256,7 +258,7 @@ class TCP:
                 self.recibirArchivo(destino)
 
             else:
-                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
         else:
             self.__conexion.send(cmd.encode())
@@ -267,7 +269,7 @@ class TCP:
                 self.recibirArchivo(destino)
 
             else:
-                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendFileTo(self, cmd):
         if re.search("-d", cmd):
@@ -329,12 +331,12 @@ class TCP:
                 canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
                 imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
 
-            cv2.imshow(f"{self.__addr[0]}: {nombre}", imagen)
+            cv2.imshow(f"{self.__userName}@{self.__addr[0]}: {nombre}", imagen)
             cv2.waitKey()
             cv2.destroyAllWindows()
 
         else:
-            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendDirFrom(self, cmd):
         if re.search("-d", cmd):
@@ -352,7 +354,7 @@ class TCP:
             if msg[:6] != "error:":
                 self.recibirDirectorio(destino, index)
             else:
-                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
         else:
             if re.search("-i", cmd):
@@ -368,7 +370,7 @@ class TCP:
                 destino = self.__conexion.recv(1024).decode()
                 self.recibirDirectorio(destino, index)
             else:
-                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendDirTo(self, cmd):
         if re.search("-d", cmd):
@@ -404,27 +406,30 @@ class TCP:
         msg = self.__conexion.recv(1024).decode()
 
         if msg[:6] != "error:":
-            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+            print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
         else:
-            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def descomprimir(self, cmd):
         self.__conexion.send(cmd.encode())
         msg = self.__conexion.recv(1024).decode()
 
         if msg[:6] != "error:":
-            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+            print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
         else:
-            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def encrypt(self, cmd):
         clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -e", cmd)[0]
         directorio = re.findall("-e[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
         if clave.endswith(".key"):
-            self.generarClave(clave)
-            key = self.cargarClave(clave)
+            if not os.path.isdir(f"{self.initDir}/keys"):
+                os.mkdir(f"{self.initDir}/keys")
+            self.generarClave(f"{self.initDir}/keys/{clave}")
+            key = self.cargarClave(f"{self.initDir}/keys/{clave}")
 
             self.__conexion.send(cmd.encode())
+            sleep(0.1)
             self.__conexion.send(key)
 
             msg = self.__conexion.recv(1024).decode()
@@ -437,23 +442,24 @@ class TCP:
                     self.__conexion.send('S'.encode())
 
                     msg = self.__conexion.recv(1024).decode()
-                    print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
-                    self.recibirArchivo(f"{clave}.dat")
+                    if msg[:6] != "error:":
+                        print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
+                        self.recibirArchivo(f"{clave}.dat")
+                    else:
+                        print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
                 else:
                     self.__conexion.send('N'.encode())
                     msg = self.__conexion.recv(1024).decode()
-                    print(Fore.YELLOW + f"[!] {self.__addr[0]}: {msg}")
+                    print(Fore.YELLOW + f"[!] {self.__userName}@{self.__addr[0]}: {msg}")
 
             else:
-                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
         else:
             print(Fore.YELLOW + f"[!] Error al crear la clave \"{clave}\"")
 
-    def decrypt(self, cmd):
-        clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
-        directorio = re.findall("-d([a-zA-Z0-9./ ].*)", cmd)[0]
+    def decrypt(self, cmd, clave):
         if os.path.isfile(clave) and clave.endswith(".key"):
             print(Fore.MAGENTA + f"[?] Segur@ que quieres usar la clave \"{clave}\"?...\n[S/n] ", end='')
             res = input()
@@ -461,8 +467,11 @@ class TCP:
             if len(res) == 0 or res.upper() == 'S':
                 key = self.cargarClave(clave)
                 self.__conexion.send(cmd.encode())
-                sleep(0.1)
+                sleep(0.05)
                 self.__conexion.send(key)
+                if not re.search("-k", cmd):
+                    sleep(0.05)
+                    self.__conexion.send(self.getNombre(clave).encode())
 
                 msg = self.__conexion.recv(1024).decode()
                 if msg[:6] != "error:":
@@ -474,18 +483,28 @@ class TCP:
                         self.__conexion.send('S'.encode())
 
                         msg = self.__conexion.recv(1024).decode()
-                        print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
-                        self.recibirArchivo(f"{clave}.dat")
-                        os.remove(f"{clave}")
-                        print(Fore.YELLOW + f"[!] Clave \"{clave}\" eliminada")
+                        if msg[:6] != "error:":
+                            print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
+                            self.recibirArchivo(f"{self.getNombre(clave)}.dat")
+                            os.remove(f"{clave}")
+                            print(Fore.YELLOW + f"[!] Clave \"{clave}\" eliminada")
+
+                            #linux
+                            llaves = os.listdir(f"{self.initDir}/keys")
+                            # windows
+                            # llaves = os.listdir(f"{self.initDir}\\keys")
+                            if len(llaves) == 0:
+                                os.rmdir(f"{self.initDir}/keys")
+                        else:
+                            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
                     else:
                         self.__conexion.send('N'.encode())
                         msg = self.__conexion.recv(1024).decode()
-                        print(Fore.YELLOW + f"[!] {self.__addr[0]}: {msg}")
+                        print(Fore.YELLOW + f"[!] {self.__userName}@{self.__addr[0]}: {msg}")
 
                 else:
-                    print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+                    print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
             else:
                 print(Fore.YELLOW + f"[!] Desencriptacion cancelada")
@@ -497,9 +516,9 @@ class TCP:
 
         msg = self.__conexion.recv(1024).decode()
         if msg[:6] != "error:":
-            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+            print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
         else:
-            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def shell(self):
         try:
@@ -635,13 +654,31 @@ class TCP:
 
                 elif cmd.lower()[:7] == "decrypt":
                     try:
-                        if re.search("-k", cmd):
-                            if re.search("-d", cmd):
-                                self.decrypt(cmd)
+                        if re.search("-d", cmd):
+                            if re.search("-k", cmd):
+                                clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+                                self.decrypt(cmd, f"{os.getcwd()}/{clave}")
+
                             else:
-                                print(Fore.YELLOW + f"[!] Falta del parametro decrypt (-d)")
+                                if os.path.isdir(f"{self.initDir}/keys"):
+                                    # linux
+                                    llaves = os.listdir(f"{self.initDir}/keys")
+                                    # windows
+                                    # llaves = os.listdir(f"{self.initDir}\\keys")
+
+                                    for i, v in enumerate(llaves, 1):
+                                        print(f"{i}. {v}")
+                                    index = int(input('> '))
+                                    clave = llaves[index-1]
+
+                                    # Linux
+                                    self.decrypt(cmd, f"{self.initDir}/keys/{clave}")
+                                    # Windows
+                                    # self.decrypt(cmd, f"{self.initDir}\\keys\\{clave}")
+                                else:
+                                    print(Fore.YELLOW + "[!] No se encontraron llaves disponibles")
                         else:
-                            print(Fore.YELLOW + f"[!] Falta del parametro key (-k)")
+                            print(Fore.YELLOW + f"[!] Falta del parametro decrypt (-d)")
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (decrypt)")
