@@ -316,6 +316,16 @@ class TCP:
             imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
             print(f"Escala: {escala}")
 
+            if re.search("-90", cmd):
+                imagen = cv2.rotate(imagen, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            if re.search("-180", cmd):
+                imagen = cv2.rotate(imagen, cv2.ROTATE_180)
+            if re.search("-270", cmd):
+                imagen = cv2.rotate(imagen, cv2.ROTATE_90_CLOCKWISE)
+            if re.search("-x", cmd):
+                imagen = cv2.flip(imagen, 0)
+            if re.search("-y", cmd):
+                imagen = cv2.flip(imagen, 1)
             if re.search("-g", cmd):
                 imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
             if re.search("-n", cmd):
@@ -444,7 +454,7 @@ class TCP:
                     msg = self.__conexion.recv(1024).decode()
                     if msg[:6] != "error:":
                         print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
-                        self.recibirArchivo(f"{clave}.dat")
+                        self.recibirArchivo(f"{self.initDir}/{clave}.dat")
                     else:
                         print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
@@ -485,7 +495,7 @@ class TCP:
                         msg = self.__conexion.recv(1024).decode()
                         if msg[:6] != "error:":
                             print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
-                            self.recibirArchivo(f"{self.getNombre(clave)}.dat")
+                            self.recibirArchivo(f"{self.initDir}/{self.getNombre(clave)}.dat")
                             os.remove(f"{clave}")
                             print(Fore.YELLOW + f"[!] Clave \"{clave}\" eliminada")
 
