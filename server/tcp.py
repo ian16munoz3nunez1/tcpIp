@@ -345,6 +345,7 @@ class TCP:
                 canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
                 imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
 
+            print(f"{self.__userName}@{self.__addr[0]}: {nombre}")
             cv2.imshow(f"{self.__userName}@{self.__addr[0]}: {nombre}", imagen)
             cv2.waitKey()
             cv2.destroyAllWindows()

