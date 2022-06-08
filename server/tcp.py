@@ -14,14 +14,10 @@ from collections import deque
 init(autoreset=True)
 
 class TCP:
-    def __init__(self, host, port, chunk):
+    def __init__(self, host, port):
         self.__host = host
         self.__port = port
-
-        if chunk <= 0 or chunk > 24:
-            self.__chunk = 1024
-        else:
-            self.__chunk = chunk * 1024
+        self.__chunk = 4194304
 
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -36,7 +32,6 @@ class TCP:
         sleep(0.05)
         self.initDir = os.getcwd()
         self.comandos = deque()
-        self.__conexion.send(str(self.__chunk).encode())
         info = self.__conexion.recv(1024).decode()
         info = info.split('\n')
         self.__userName = info[0]
@@ -65,14 +60,19 @@ class TCP:
 
     def escalar(self, height, width):
         if height > width:
-            escala = 500/height
+            escala = 600/height
         elif width > height:
-            escala = 400/width
+            escala = 600/width
         else:
             escala = (height+width)/2
-            escala = 500/escala
+            escala = 600/escala
 
         return escala
+
+    def enviarDatos(self, info):
+        info = pickle.dumps(info)
+        info = struct.pack('Q', len(info))+info
+        self.__conexion.sendall(info)
 
     def recibirDatos(self):
         data = b''
@@ -95,9 +95,10 @@ class TCP:
         return info
 
     def enviarArchivo(self, ubicacion):
-        sleep(0.05)
-        tam = os.path.getsize(ubicacion)
-        paquetes = int(tam/self.__chunk)
+        peso = os.path.getsize(ubicacion)
+        paquetes = int(peso/self.__chunk)
+        if paquetes == 0:
+            paquetes = 1
         print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
         sleep(0.1)
@@ -105,7 +106,7 @@ class TCP:
         with open(ubicacion, 'rb') as archivo:
             info = archivo.read(self.__chunk)
             while info:
-                self.__conexion.send(info)
+                self.enviarDatos(info)
                 info = archivo.read(self.__chunk)
                 print(f"Paquete {i} enviado", end='\r')
                 i += 1
@@ -116,12 +117,14 @@ class TCP:
 
     def recibirArchivo(self, ubicacion):
         paquetes = int(self.__conexion.recv(1024).decode())
+        if paquetes == 0:
+            paquetes = 1
         print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
         i = 0
         with open(ubicacion, 'wb') as archivo:
             while True:
-                info = self.__conexion.recv(self.__chunk)
+                info = self.recibirDatos()
                 archivo.write(info)
 
                 if len(info) < self.__chunk:
@@ -165,6 +168,10 @@ class TCP:
                 self.__conexion.send(nombre.encode())
                 self.enviarArchivo(archivos[index-1])
                 subidos += 1
+                msg = self.__conexion.recv(1024).decode()
+                if msg[:6] == "error:":
+                    print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+                    break
 
             elif res.lower() == 'q' or res.lower() == "quit":
                 self.__conexion.send("quit".encode())
@@ -194,16 +201,20 @@ class TCP:
             peso = int(peso)
 
             if peso > 0:
-                print(Fore.MAGENTA + f"\n[?] {index}. Bajar \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
+                print(Fore.MAGENTA + f"\n[?] {index}. Bajar \"{nombre}\" (-p{paquetes}, -s{peso})?...\n[S/n] ", end='')
                 res = input()
             else:
-                print(Fore.YELLOW + f"\n[!] {index}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
+                print(Fore.YELLOW + f"\n[!] {index}. Archivo \"{nombre}\" omitido (-p{paquetes}, -s{peso})")
                 res = 'N'
 
             if len(res) == 0 or res.upper() == 'S':
-                self.__conexion.send('S'.encode())
-                self.recibirArchivo(f"{destino}/{nombre}")
-                bajados += 1
+                try:
+                    self.__conexion.send('S'.encode())
+                    self.recibirArchivo(f"{destino}/{nombre}")
+                    bajados += 1
+                    self.__conexion.send("ok".encode())
+                except:
+                    self.__conexion.send("error".encode())
             elif res.lower() == 'q' or res.lower() == "quit":
                 self.__conexion.send("quit".encode())
                 break
@@ -253,7 +264,7 @@ class TCP:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendFileFrom(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
             self.__conexion.send(cmd.encode())
 
@@ -276,7 +287,7 @@ class TCP:
                 print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendFileTo(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
 
             if os.path.isfile(origen):
@@ -304,7 +315,6 @@ class TCP:
         self.__conexion.send(cmd.encode())
 
         msg = self.__conexion.recv(1024).decode()
-
         if msg[:6] != "error:":
             nombre = self.__conexion.recv(1024).decode()
             info = self.recibirDatos()
@@ -312,7 +322,7 @@ class TCP:
             matriz = numpy.frombuffer(info, dtype=numpy.uint8)
             imagen = cv2.imdecode(matriz, -1)
 
-            if re.search("-t", cmd):
+            if re.search("-t[= ]", cmd):
                 escala = float(re.findall("-t[= ]([0-9.].*)", cmd)[0])
             else:
                 height, width = imagen.shape[:2]
@@ -354,8 +364,8 @@ class TCP:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendDirFrom(self, cmd):
-        if re.search("-d", cmd):
-            if re.search("-i", cmd):
+        if re.search("-d[= ]", cmd):
+            if re.search("-i[= ]", cmd):
                 destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
@@ -372,7 +382,7 @@ class TCP:
                 print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
         else:
-            if re.search("-i", cmd):
+            if re.search("-i[= ]", cmd):
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
                     index = 1
@@ -388,9 +398,9 @@ class TCP:
                 print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
     def sendDirTo(self, cmd):
-        if re.search("-d", cmd):
+        if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
-            if re.search("-i", cmd):
+            if re.search("-i[= ]", cmd):
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
                     index = 1
@@ -401,7 +411,7 @@ class TCP:
             self.enviarDirectorio(origen, index)
 
         else:
-            if re.search("-i", cmd):
+            if re.search("-i[= ]", cmd):
                 origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
                 index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
                 if index <= 0:
@@ -484,7 +494,7 @@ class TCP:
                 self.__conexion.send(cmd.encode())
                 sleep(0.05)
                 self.__conexion.send(key)
-                if not re.search("-k", cmd):
+                if not re.search("-k[= ]", cmd):
                     sleep(0.05)
                     self.__conexion.send(self.getNombre(clave).encode())
 
@@ -593,7 +603,7 @@ class TCP:
 
                 elif cmd.lower()[:3] == "sff":
                     try:
-                        if re.search("-o", cmd):
+                        if re.search("-o[= ]", cmd):
                             self.sendFileFrom(cmd)
 
                         else:
@@ -604,7 +614,7 @@ class TCP:
 
                 elif cmd.lower()[:3] == "sft":
                     try:
-                        if re.search("-o", cmd):
+                        if re.search("-o[= ]", cmd):
                             self.sendFileTo(cmd)
                         else:
                             print(Fore.RED + "[!] Falta del parametro de origen (-o)")
@@ -614,7 +624,7 @@ class TCP:
 
                 elif cmd.lower()[:3] == "img":
                     try:
-                        if re.search("-i", cmd) or re.search("-r", cmd):
+                        if re.search("-i[= ]", cmd) or re.search("-r", cmd):
                             self.image(cmd)
                         else:
                             print(Fore.YELLOW + f"[!] Falta del parametro imagen (-i)")
@@ -624,7 +634,7 @@ class TCP:
 
                 elif cmd.lower()[:3] == "sdf":
                     try:
-                        if re.search("-o", cmd):
+                        if re.search("-o[= ]", cmd):
                             self.sendDirFrom(cmd)
 
                         else:
@@ -635,7 +645,7 @@ class TCP:
 
                 elif cmd.lower()[:3] == "sdt":
                     try:
-                        if re.search("-o", cmd):
+                        if re.search("-o[= ]", cmd):
                             self.sendDirTo(cmd)
                         else:
                             print(Fore.YELLOW + f"[!] Falta del parametro origen (-o)")
@@ -645,7 +655,7 @@ class TCP:
 
                 elif cmd.lower()[:3] == "zip":
                     try:
-                        if re.search("-o", cmd):
+                        if re.search("-o[= ]", cmd):
                             self.comprimir(cmd)
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
@@ -655,7 +665,7 @@ class TCP:
 
                 elif cmd.lower()[:5] == "unzip":
                     try:
-                        if re.search("-o", cmd):
+                        if re.search("-o[= ]", cmd):
                             self.descomprimir(cmd)
 
                         else:
@@ -666,8 +676,8 @@ class TCP:
 
                 elif cmd.lower()[:7] == "encrypt":
                     try:
-                        if re.search("-k", cmd):
-                            if re.search("-e", cmd):
+                        if re.search("-k[= ]", cmd):
+                            if re.search("-e[= ]", cmd):
                                 self.encrypt(cmd)
                             else:
                                 print(Fore.YELLOW + "[!] Falta del parametro encrypt (-e)")
@@ -680,8 +690,8 @@ class TCP:
 
                 elif cmd.lower()[:7] == "decrypt":
                     try:
-                        if re.search("-d", cmd):
-                            if re.search("-k", cmd):
+                        if re.search("-d[= ]", cmd):
+                            if re.search("-k[= ]", cmd):
                                 clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
                                 self.decrypt(cmd, f"{os.getcwd()}/{clave}")
 
@@ -711,7 +721,7 @@ class TCP:
 
                 elif cmd.lower()[:6] == "miwget":
                     try:
-                        if re.search("-u", cmd):
+                        if re.search("-u[= ]", cmd):
                             self.wget(cmd)
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro url (-u)")
