@@ -6,6 +6,7 @@ class UDP:
     def __init__(self, host, port):
         self.__host = host
         self.__port = port
+        self.__chunk = 64*1024
         self.__addr = (self.__host, self.__port)
 
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -25,6 +26,10 @@ class UDP:
             msg = cv2.imencode(".jpg", video, [cv2.IMWRITE_JPEG_QUALITY, 80])[1]
             msg = base64.b64encode(msg)
             self.__sock.sendto(msg, self.__addr)
+
+            msg = self.__sock.recvfrom(self.__chunk)
+            if msg == "end":
+                break
         captura.release()
 
     def close(self):

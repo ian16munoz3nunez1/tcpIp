@@ -28,7 +28,10 @@ class UDP:
             cv2.imshow(f"{userName}@{self.__addr[0]}: Captura", video)
 
             if cv2.waitKey(1) == 27:
+                self.__sock.sendto("end".encode(), self.__addr)
                 break
+            else:
+                self.__sock.sendto("ok".encode(), self.__addr)
         cv2.destroyAllWindows()
 
     def close(self):
