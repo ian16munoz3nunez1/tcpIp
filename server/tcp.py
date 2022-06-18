@@ -418,8 +418,12 @@ class TCP:
                 udp.captura(self.__userName)
                 sleep(0.5)
                 udp.close()
+                msg = self.__conexion.recv(1024).decode()
+                print(msg)
             except:
                 udp.close()
+                msg = self.__conexion.recv(1024).decode()
+                print(msg)
         else:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
@@ -467,8 +471,11 @@ class TCP:
             else:
                 index = 1
 
-            self.__conexion.send(cmd.encode())
-            self.enviarDirectorio(cmd, origen, index)
+            if os.path.isdir(origen):
+                self.__conexion.send(cmd.encode())
+                self.enviarDirectorio(cmd, origen, index)
+            else:
+                print(Fore.YELLOW + f"Directorio \"{origen}\" no encontrado")
 
         else:
             if re.search("-i[= ]", cmd):
@@ -480,11 +487,14 @@ class TCP:
                 origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
                 index = 1
 
-            self.__conexion.send(cmd.encode())
-            sleep(0.05)
-            destino = self.getNombre(origen)
-            self.__conexion.send(destino.encode())
-            self.enviarDirectorio(cmd, origen, index)
+            if os.path.isdir(origen):
+                self.__conexion.send(cmd.encode())
+                sleep(0.05)
+                destino = self.getNombre(origen)
+                self.__conexion.send(destino.encode())
+                self.enviarDirectorio(cmd, origen, index)
+            else:
+                print(Fore.YELLOW + f"Directorio \"{origen}\" no encotrado")
 
     def comprimir(self, cmd):
         self.__conexion.send(cmd.encode())

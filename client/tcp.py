@@ -277,8 +277,10 @@ class TCP:
                 sleep(0.1)
                 udp.captura(camara)
                 udp.close()
+                self.__sock.send("client-UDP desconectado".encode())
             except:
                 udp.close()
+                self.__sock.send("client-UDP desconectado".encode())
         else:
             self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
 
