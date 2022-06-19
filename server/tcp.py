@@ -986,8 +986,7 @@ class TCP:
                         self.__conexion.send(cmd.encode())
 
                         while True:
-                            info = self.__conexion.recv(self.__chunk)
-                            info = ''.join([chr(i) for i in info])
+                            info = self.recibirDatos().decode()
                             print(info)
 
                             if len(info) < self.__chunk:

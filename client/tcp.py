@@ -791,7 +791,7 @@ class TCP:
                             else:
                                 i = 0
                                 while i < len(info):
-                                    self.__sock.send(info[i:i+self.__chunk])
+                                    self.enviarDatos(info[i:i+self.__chunk])
                                     i += self.__chunk
 
                     except:
