@@ -24,6 +24,7 @@ class UDP:
             if not leido:
                 break
 
+            height, width = video.shape[:2]
             x = 6
             y = height-10
             widthS = x-5
