@@ -643,7 +643,7 @@ class TCP:
                 self.__sock.send(f"{cont} elementos encontrados".encode())
 
         else:
-            self.__sock.send("error: Directorio \"{directorio}\" no encontrado".encode())
+            self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
 
     # Funcion para enviar a un archivo del servidor la salida de un comando
     # cmd --> comando recibido

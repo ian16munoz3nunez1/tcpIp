@@ -1,6 +1,7 @@
 import socket
 import cv2
 import base64
+import time
 
 class UDP:
     def __init__(self, host, port):
@@ -22,6 +23,16 @@ class UDP:
             leido, video = captura.read()
             if not leido:
                 break
+
+            x = 6
+            y = height-10
+            widthS = x-5
+            widthF = widthS+298
+            heightS = y-22
+            heightF = y+8
+
+            cv2.rectangle(video, (widthS, heightS), (widthF, heightF), (50, 50, 50), -1)
+            cv2.putText(video, time.strftime("%Y/%m/%d %H:%M:%S"), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 1, cv2.LINE_AA)
 
             msg = cv2.imencode(".jpg", video, [cv2.IMWRITE_JPEG_QUALITY, 80])[1]
             msg = base64.b64encode(msg)

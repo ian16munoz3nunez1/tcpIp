@@ -329,7 +329,7 @@ class TCP:
             print(Fore.YELLOW + f"[!] Conexion terminada con {self.__userName}@{self.__addr[0]}")
             return True
         else:
-            print(Fore.YELLOW + f"[!] Operacion cancelada")
+            print(Fore.YELLOW + "[!] Operacion cancelada")
             return False
 
     # Funcion para cambiar de directorio en el cliente
