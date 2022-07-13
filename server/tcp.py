@@ -11,6 +11,7 @@ from colorama import init
 from colorama.ansi import Fore
 from cryptography.fernet import Fernet
 from udp import UDP
+from man import logo, man
 
 init(autoreset=True)
 
@@ -493,7 +494,10 @@ class TCP:
         if msg[:6].lower() != "error:":
             try:
                 udp.conectar()
-                udp.captura(self.__userName)
+                if re.search("-s", cmd):
+                    udo.captura(self.__userName, 1)
+                else:
+                    udp.captura(self.__userName)
                 sleep(0.5)
                 udp.close()
                 msg = self.__conexion.recv(1024).decode()
@@ -735,6 +739,12 @@ class TCP:
 
                 if cmd == '' or cmd.replace(' ', '') == '':
                     print(Fore.YELLOW + f"[!] Comando invalido")
+
+                # Si el comando es 'help'
+                # Se despliega un mensaje de ayuda
+                elif cmd.lower()[:4] == "help":
+                    logo()
+                    man()
 
                 # Si el primer caracter del comando es '!',
                 # se ejecuta un comando local

@@ -1,9 +1,15 @@
 from tcp import TCP
+from man import logo, man
 import sys
 
-host = sys.argv[1]
-port = int(sys.argv[2])
+if sys.argv[1] == "--help" or sys.argv[1] == "-h":
+    logo()
+    man()
 
-tcp = TCP(host, port)
+else:
+    host = sys.argv[1]
+    port = int(sys.argv[2])
 
-tcp.shell()
+    tcp = TCP(host, port)
+
+    tcp.shell()
