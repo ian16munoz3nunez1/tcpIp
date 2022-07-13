@@ -495,7 +495,7 @@ class TCP:
             try:
                 udp.conectar()
                 if re.search("-s", cmd):
-                    udo.captura(self.__userName, 1)
+                    udp.captura(self.__userName, 1)
                 else:
                     udp.captura(self.__userName)
                 sleep(0.5)

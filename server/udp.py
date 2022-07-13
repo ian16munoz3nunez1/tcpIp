@@ -19,22 +19,22 @@ class UDP:
         print("UDP conectado")
 
     def captura(self, userName, save=None):
-        height = 480
-        width = 720
-        fps = 10
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        output = cv2.VideoWriter("output.mp4", fourcc, fps, (width, height))
+        if save is not None:
+            height = 480
+            width = 720
+            fps = 10
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            output = cv2.VideoWriter("output.mp4", fourcc, fps, (width, height))
 
         while True:
             info = self.__sock.recvfrom(self.__chunk)[0]
             info = base64.b64decode(info, ' /')
             matriz = numpy.frombuffer(info, dtype=numpy.uint8)
             video = cv2.imdecode(matriz, -1)
-            height, width = video.shape[:2]
 
             cv2.imshow(f"{userName}@{self.__addr[0]}: Captura", video)
             if save is not None:
-                output.write(video)
+                output.write(cv2.resize(video, (width, height)))
 
             if cv2.waitKey(1) == 27:
                 self.__sock.sendto("end".encode(), self.__addr)
