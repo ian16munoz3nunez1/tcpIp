@@ -113,11 +113,7 @@ def man():
     print(Fore.MAGENTA + "\tmiwget -u=<url> ~~ miwget -u <url> -n wget.pdf")
 
     print(Fore.BLUE + "lendir" + Fore.RED + " --> " + Fore.WHITE + "Muestra al numero de elementos de un directorio")
-    print(Fore.YELLOW + "\t* -p" + Fore.RED + " --> " + Fore.WHITE + "Especifica el path/ruta del directorio")
-    print(Fore.GREEN + "\t+ -f=" + Fore.RED + " --> " + Fore.WHITE + "Muestra el numero de archivos")
-    print(Fore.GREEN + "\t+ -d=" + Fore.RED + " --> " + Fore.WHITE + "Muestra el numero de directorios")
-    print(Fore.GREEN + "\t+ -a=" + Fore.RED + " --> " + Fore.WHITE + "Muestra todos los elementos (igual a usar el comando sin parametros)")
-    print(Fore.MAGENTA + "\tlendir -p dirPath ~~ lendir -f= -p dirPath ~~ lendir -d= -p dirPath ~~ lendir -a= -p dirPath")
+    print(Fore.MAGENTA + "\tlendir dirPath")
 
     print(Fore.BLUE + "save" + Fore.RED + " --> " + Fore.WHITE + "Guarda en un archivo de texto la informacion regresada por un comando")
     print(Fore.MAGENTA + "\tsave whoami")
