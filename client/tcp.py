@@ -169,6 +169,7 @@ class TCP:
             res = self.__sock.recv(8).decode()
             if res == 'S':
                 self.enviarArchivo(archivos[index-1])
+                self.__sock.send("ok".encode())
             elif res == "quit":
                 break
             else:
@@ -202,6 +203,7 @@ class TCP:
 
                 self.__sock.send("ok".encode())
                 self.recibirArchivo(f"{destino}/{nombre}")
+                ok = self.__sock.recv(8)
 
             elif res == "quit":
                 break

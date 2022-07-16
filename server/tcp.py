@@ -234,6 +234,7 @@ class TCP:
 
                 ok = self.__conexion.recv(8)
                 self.enviarArchivo(archivos[index-1])
+                self.__conexion.send("ok".encode())
 
                 subidos += 1
 
@@ -254,8 +255,8 @@ class TCP:
     # destino --> Directorio en el que se guardaran los archivos
     # index --> indice desde el que se quiere iniciar
     def recibirDirectorio(self, cmd, destino, index):
-        ok = self.__conexion.recv(8)
         # Se recibe el numero de archivos
+        ok = self.__conexion.recv(8)
         if not os.path.isdir(destino):
             os.mkdir(destino)
 
@@ -288,6 +289,7 @@ class TCP:
             if len(res) == 0 or res.upper() == 'S':
                 self.__conexion.send('S'.encode())
                 self.recibirArchivo(f"{destino}/{nombre}")
+                ok = self.__conexion.recv(8)
                 bajados += 1
 
             elif res.lower() == 'q' or res.lower() == "quit":
