@@ -204,6 +204,7 @@ class TCP:
         self.__conexion.send("ok".encode())
         ok = self.__conexion.recv(8)
         self.__conexion.send(str(tam).encode())
+        ok = self.__conexion.recv(8)
 
         # Se comienzan a enviar los archivos
         if index > tam:
@@ -235,10 +236,6 @@ class TCP:
                 self.enviarArchivo(archivos[index-1])
 
                 subidos += 1
-                msg = self.__conexion.recv(8).decode()
-                if msg == "error":
-                    print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: error")
-                    break
 
             elif res.lower() == 'q' or res.lower() == "quit":
                 self.__conexion.send("quit".encode())
@@ -257,6 +254,7 @@ class TCP:
     # destino --> Directorio en el que se guardaran los archivos
     # index --> indice desde el que se quiere iniciar
     def recibirDirectorio(self, cmd, destino, index):
+        ok = self.__conexion.recv(8)
         # Se recibe el numero de archivos
         if not os.path.isdir(destino):
             os.mkdir(destino)
@@ -288,14 +286,9 @@ class TCP:
                 res = 'N'
 
             if len(res) == 0 or res.upper() == 'S':
-                try:
-                    self.__conexion.send('S'.encode())
-                    self.recibirArchivo(f"{destino}/{nombre}")
-                    bajados += 1
-                    sleep(0.05)
-                    self.__conexion.send("next".encode())
-                except:
-                    self.__conexion.send("error".encode())
+                self.__conexion.send('S'.encode())
+                self.recibirArchivo(f"{destino}/{nombre}")
+                bajados += 1
 
             elif res.lower() == 'q' or res.lower() == "quit":
                 self.__conexion.send("quit".encode())

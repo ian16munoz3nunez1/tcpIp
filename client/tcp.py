@@ -143,6 +143,7 @@ class TCP:
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
     def enviarDirectorio(self, origen, index):
+        self.__sock.send("ok".encode())
         # Se obtiene el numero de archivos
         archivos = []
         for i in os.listdir(origen):
@@ -168,9 +169,6 @@ class TCP:
             res = self.__sock.recv(8).decode()
             if res == 'S':
                 self.enviarArchivo(archivos[index-1])
-                msg = self.__sock.recv(8).decode()
-                if msg == "error":
-                    break
             elif res == "quit":
                 break
             else:
@@ -190,6 +188,7 @@ class TCP:
         ok = self.__sock.recv(8)
         self.__sock.send("ok".encode())
         tam = int(self.__sock.recv(64).decode())
+        self.__sock.send("ok".encode())
 
         # Se comienzan a recibir los archivos
         if index > tam:
@@ -198,18 +197,12 @@ class TCP:
             res = self.__sock.recv(8).decode()
 
             if res == 'S':
-                try:
-                    self.__sock.send("ok".encode())
-                    nombre = self.__sock.recv(1024).decode()
+                self.__sock.send("ok".encode())
+                nombre = self.__sock.recv(1024).decode()
 
-                    self.__sock.send("ok".encode())
-                    self.recibirArchivo(f"{destino}/{nombre}")
+                self.__sock.send("ok".encode())
+                self.recibirArchivo(f"{destino}/{nombre}")
 
-                    sleep(0.05)
-                    self.__sock.send("next".encode())
-                except:
-                    self.__sock.send("error".encode())
-                    break
             elif res == "quit":
                 break
             else:
