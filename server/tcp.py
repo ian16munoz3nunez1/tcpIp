@@ -1,3 +1,4 @@
+## Server
 import socket
 import os
 import re
@@ -1037,14 +1038,19 @@ class TCP:
                 # y se recibe lo que este regresa
                 else:
                     try:
-                        self.__conexion.send(cmd.encode())
-
-                        while True:
-                            info = self.recibirDatos().decode()
+                        if cmd.lower()[:4] == "open":
+                            self.__conexion.send(cmd.encode())
+                            info = self.__conexion.recv(1024).decode()
                             print(info)
 
-                            if len(info) < self.__chunk:
-                                break
+                        else:
+                            self.__conexion.send(cmd.encode())
+                            while True:
+                                info = self.recibirDatos().decode()
+                                print(info)
+
+                                if len(info) < self.__chunk:
+                                    break
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error al ejecutar el comando")

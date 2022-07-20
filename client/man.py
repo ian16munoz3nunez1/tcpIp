@@ -1,3 +1,4 @@
+## Client
 from colorama import init
 from colorama.ansi import Fore
 
@@ -22,7 +23,13 @@ def man():
     print(Fore.GREEN + "+" + Fore.RED + " --> " + Fore.WHITE + "Parametro opcional")
     print()
 
-    print(Fore.BLUE + "--help/-h/help" + Fore.RED + " --> " + Fore.WHITE + "Despliega este mensaje de ayuda")
+    print(Fore.BLUE + "--help/-h" + Fore.RED + " --> " + Fore.WHITE + "Despliega este mensaje de ayuda")
+    print(Fore.MAGENTA + "\ttcpIpyc --help ~~ tcpIpyc -h")
+
+    print(Fore.BLUE + "tcpIpyc" + Fore.RED + " --> " + Fore.WHITE + "Se ejecuta el programa con los parametros por default")
+    print(Fore.BLUE + "tcpIpyc <ipv4> <port>" + Fore.RED + " --> " + Fore.WHITE + "Se ejecuta el comando con los parametros especificados")
+    print(Fore.MAGENTA + "\t<ipv4> --> 127.0.0.1 ~~ <port> --> 2048")
+    print()
 
     print(Fore.BLUE + "!" + Fore.RED + " --> " + Fore.WHITE + "Ejecuta un comando local despues del simbolo")
     print(Fore.MAGENTA + "\t!cd ..")
