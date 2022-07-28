@@ -59,6 +59,31 @@ class TCP:
         print(Fore.GREEN + "\u250c\u2500\u2500(" + Fore.BLUE + f"{self.__userName}~{self.__hostName}" + Fore.GREEN + ")-[" + Fore.WHITE + self.__currentDir + Fore.GREEN + ']')
         print(Fore.GREEN + "\u2514\u2500" + Fore.BLUE + "> ", end='')
 
+    def parametros(self, cmd, arg1, arg2=None):
+        flags = None
+        if arg2 is not None and re.search(arg2, cmd):
+            m = re.search(arg2, cmd)
+            if m.end() == len(cmd):
+                flags = cmd[m.start()+1:m.end()]
+                cmd = re.sub(arg2[:-3], '', cmd)
+            else:
+                flags = cmd[m.start()+1:m.end()-1]
+                cmd = re.sub(arg2, ' ', cmd)
+
+        m = re.split(arg1, cmd)
+        m.pop(0)
+
+        params = {}
+
+        i = 0
+        while i < len(m):
+            flag = m[i].replace(' ', '')
+            flag = flag.replace('=', '')
+            params[flag] = m[i+1]
+            i += 2
+
+        return params, flags
+
     # Funcion para regresar el nombre de un archivo o directorio
     # ubicacion --> ubicacion del archivo o directorio
     def getNombre(self, ubicacion):
@@ -255,7 +280,7 @@ class TCP:
     # cmd --> comando ejecutado
     # destino --> Directorio en el que se guardaran los archivos
     # index --> indice desde el que se quiere iniciar
-    def recibirDirectorio(self, cmd, destino, index):
+    def recibirDirectorio(self, destino, index, auto=None):
         # Se recibe el numero de archivos
         ok = self.__conexion.recv(8)
         if not os.path.isdir(destino):
@@ -277,7 +302,7 @@ class TCP:
             peso = int(peso)
 
             if peso > 0:
-                if re.search("-a[= ]", cmd):
+                if auto:
                     print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
                     res = 'S'
                 else:
@@ -351,9 +376,14 @@ class TCP:
     # Funcion para recibir un archivo del cliente
     # cmd --> comando ingresado
     def sendFileFrom(self, cmd):
-        if re.search("-d[= ]", cmd):
-            destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
-            self.__conexion.send(cmd.encode())
+        if re.search(r"\s-o[= ]", cmd):
+            params = self.parametros(cmd, r"(\s-[io]+[= ])")[0]
+            if '-o' in params.keys():
+                destino = params['-o']
+                self.__conexion.send(cmd.encode())
+            else:
+                print(Fore.YELLOW + "[!] Error al detectar parametros")
+                return
 
             msg = self.__conexion.recv(1024).decode()
             if msg[:6] != "error:":
@@ -380,8 +410,13 @@ class TCP:
     # Funcion para enviar un archivo al cliente
     # cmd --> comando ingresado
     def sendFileTo(self, cmd):
-        if re.search("-d[= ]", cmd):
-            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+        if re.search(r"\s-o[= ]", cmd):
+            params = self.parametros(cmd, r"(\s-[io]+[= ])")[0]
+            if '-i' in params.keys():
+                origen = params['-i']
+            else:
+                print(Fore.YELLOW + "[!] Error al detectar parametros")
+                return
 
             if os.path.isfile(origen):
                 self.__conexion.send(cmd.encode())
@@ -393,7 +428,12 @@ class TCP:
                 print(Fore.YELLOW + f"[!] Archivo \"{origen}\" no encontrado")
 
         else:
-            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+            params = self.parametros(cmd, r"(\s-[io]+[= ])")[0]
+            if '-i' in params.keys():
+                origen = params['-i']
+            else:
+                print(Fore.YELLOW + "[!] Error al detectar parametros")
+                return
 
             if os.path.isfile(origen):
                 self.__conexion.send(cmd.encode())
@@ -411,6 +451,7 @@ class TCP:
     # Funcion para recibir y visualizar una imagen
     # cmd --> comando ingresado
     def image(self, cmd):
+        params, flags = self.parametros(cmd, r"(\s-[it]+[= ])", r"\s-[xygnmc012789]+\s?")
         self.__conexion.send(cmd.encode())
 
         msg = self.__conexion.recv(1024).decode()
@@ -424,40 +465,42 @@ class TCP:
             matriz = numpy.frombuffer(info, dtype=numpy.uint8)
             imagen = cv2.imdecode(matriz, -1)
 
-            if re.search("-t[= ]", cmd):
-                escala = float(re.findall("-t[= ]([0-9.].*)", cmd)[0])
+            if '-t' in params.keys():
+                escala = float(params['-t'])
             else:
                 height, width = imagen.shape[:2]
                 escala = self.escalar(height, width)
             imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
-            print(f"Escala: {escala}")
+            print(Fore.CYAN + f"[*] Escala:", escala)
 
-            if re.search("-90", cmd):
-                imagen = cv2.rotate(imagen, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            if re.search("-180", cmd):
-                imagen = cv2.rotate(imagen, cv2.ROTATE_180)
-            if re.search("-270", cmd):
-                imagen = cv2.rotate(imagen, cv2.ROTATE_90_CLOCKWISE)
-            if re.search("-x", cmd):
-                imagen = cv2.flip(imagen, 0)
-            if re.search("-y", cmd):
-                imagen = cv2.flip(imagen, 1)
-            if re.search("-g", cmd):
-                imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
-            if re.search("-n", cmd):
-                imagen = 255 - imagen
-            if re.search("-m", cmd):
-                flip = cv2.flip(imagen, 1)
-                imagen = numpy.hstack((imagen, flip))
-            if re.search("-c", cmd):
-                grises = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
-                blur = cv2.GaussianBlur(grises, (3,3), 0)
-                t1 = int(input("Threshold1: "))
-                t2 = int(input("Threshold2: "))
-                canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
-                imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
+            if flags:
+                if re.search("90", flags):
+                    imagen = cv2.rotate(imagen, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                if re.search("180", flags):
+                    imagen = cv2.rotate(imagen, cv2.ROTATE_180)
+                if re.search("270", flags):
+                    imagen = cv2.rotate(imagen, cv2.ROTATE_90_CLOCKWISE)
+                if re.search("x", flags):
+                    imagen = cv2.flip(imagen, 0)
+                if re.search("y", flags):
+                    imagen = cv2.flip(imagen, 1)
+                if re.search("g", flags):
+                    imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+                    imagen = cv2.cvtColor(imagen, cv2.COLOR_GRAY2BGR)
+                if re.search("n", flags):
+                    imagen = 255 - imagen
+                if re.search("m", flags):
+                    flip = cv2.flip(imagen, 1)
+                    imagen = numpy.hstack((imagen, flip))
+                if re.search("c", flags):
+                    grises = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+                    blur = cv2.GaussianBlur(grises, (3,3), 0)
+                    t1 = int(input("Threshold1: "))
+                    t2 = int(input("Threshold2: "))
+                    canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
+                    imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
 
-            print(f"{self.__userName}@{self.__addr[0]}: {nombre}")
+            print(Fore.CYAN + f"[*] {self.__userName}@{self.__addr[0]}:", nombre)
             cv2.imshow(f"{self.__userName}@{self.__addr[0]}: {nombre}", imagen)
             cv2.waitKey()
             cv2.destroyAllWindows()
@@ -468,6 +511,7 @@ class TCP:
     # Funcion para recibir una foto de la camara y visualizarla
     # cmd --> comando ingresado
     def pic(self, cmd):
+        flags = self.parametros(cmd, r"(\s-c[= ])", r"\s-s\s?")[1]
         self.__conexion.send(cmd.encode())
 
         msg = self.__conexion.recv(1024).decode()
@@ -476,22 +520,22 @@ class TCP:
             info = self.recibirDatos()
 
             matriz = numpy.frombuffer(info, dtype=numpy.uint8)
-            imagen = cv2.imdecode(matriz, -1)
+            original = cv2.imdecode(matriz, -1)
 
-            height, width = imagen.shape[:2]
+            height, width = original.shape[:2]
             escala = self.escalar(height, width)
-            imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
+            imagen = cv2.resize(original, None, fx=escala, fy=escala)
 
             print(f"Escala: {escala}")
             cv2.imshow(f"{self.__userName}@{self.__addr[0]}: Foto", imagen)
             cv2.waitKey()
             cv2.destroyAllWindows()
 
-            if re.search("-s", cmd):
+            if flags:
                 if not os.path.isdir(f"{self.initDir}/pics"):
                     os.mkdir(f"{self.initDir}/pics")
                 fotoRuta = f"{self.initDir}/pics/pic{self.pics}.jpg"
-                cv2.imwrite(fotoRuta, imagen)
+                cv2.imwrite(fotoRuta, original)
                 print(Fore.GREEN + f"[+] Foto \"{fotoRuta}\" guardada")
                 self.pics += 1
         
@@ -501,6 +545,7 @@ class TCP:
     # Funcion para recibir video del cliente
     # cmd --> comando ingresado
     def captura(self, cmd):
+        flags = self.parametros(cmd, r"(\s-c[= ])", r"\s-s\s?")[1]
         udp = UDP(self.__host, self.__port)
         self.__conexion.send(cmd.encode())
 
@@ -509,7 +554,7 @@ class TCP:
             try:
                 udp.conectar()
                 self.__conexion.send("ok".encode())
-                if re.search("-s", cmd):
+                if flags:
                     udp.captura(self.__userName, 1)
                 else:
                     udp.captura(self.__userName)
@@ -527,28 +572,44 @@ class TCP:
     # Funcion para recibir un directorio del cliente
     # cmd --> comando ingresado
     def sendDirFrom(self, cmd):
-        if re.search("-d[= ]", cmd):
-            if re.search("-i[= ]", cmd):
-                destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
-                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                if index <= 0:
+        if re.search(r"\s-o[= ]", cmd):
+            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
+
+            if '-o' in params.keys():
+                destino = params['-o']
+            else:
+                destino = 'output'
+
+            if '-p' in params.keys():
+                try:
+                    index = int(params['-p'])
+                    if index <= 0:
+                        index = 1
+                except:
                     index = 1
             else:
-                destino = re.findall("-d[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
                 index = 1
 
             self.__conexion.send(cmd.encode())
             msg = self.__conexion.recv(1024).decode()
             if msg[:6] != "error:":
                 self.__conexion.send("ok".encode())
-                self.recibirDirectorio(cmd, destino, index)
+                if flags:
+                    self.recibirDirectorio(destino, index, 1)
+                else:
+                    self.recibirDirectorio(destino, index)
             else:
                 print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
         else:
-            if re.search("-i[= ]", cmd):
-                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                if index <= 0:
+            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
+
+            if '-p' in params.keys():
+                try:
+                    index = int(params['-p'])
+                    if index <= 0:
+                        index = 1
+                except:
                     index = 1
             else:
                 index = 1
@@ -560,7 +621,10 @@ class TCP:
                 destino = self.__conexion.recv(1024).decode()
 
                 self.__conexion.send("ok".encode())
-                self.recibirDirectorio(cmd, destino, index)
+                if flags:
+                    self.recibirDirectorio(destino, index, 1)
+                else:
+                    self.recibirDirectorio(destino, index)
             else:
                 print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
 
@@ -833,13 +897,13 @@ class TCP:
                 # Si el comando es 'sff'...
                 elif cmd.lower()[:3] == "sff":
                     try:
-                        if re.search("-o[= ]", cmd):
+                        if re.search(r"\s-i[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.sendFileFrom'
                             self.sendFileFrom(cmd)
 
                         else:
-                            print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
+                            print(Fore.YELLOW + "[!] Falta del parametro de entrada (-i)")
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (sff)")
@@ -848,12 +912,12 @@ class TCP:
                 # Si el comando es 'sft'...
                 elif cmd.lower()[:3] == "sft":
                     try:
-                        if re.search("-o[= ]", cmd):
+                        if re.search(r"\s-i[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.sendFileTo'
                             self.sendFileTo(cmd)
                         else:
-                            print(Fore.RED + "[!] Falta del parametro de origen (-o)")
+                            print(Fore.RED + "[!] Falta del parametro de entrada (-i)")
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (sft)")
@@ -862,7 +926,7 @@ class TCP:
                 # Si el comando es 'img'
                 elif cmd.lower()[:3] == "img":
                     try:
-                        if re.search("-i[= ]", cmd) or re.search("-r", cmd):
+                        if re.search(r"\s-i[= ]", cmd) or re.search(r"\s-r\s?", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.image'
                             self.image(cmd)
@@ -906,7 +970,7 @@ class TCP:
                 # Si el comando es 'sdf'...
                 elif cmd.lower()[:3] == "sdf":
                     try:
-                        if re.search("-o[= ]", cmd):
+                        if re.search(r"\s-i[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.sendDirFrom'
                             self.sendDirFrom(cmd)
