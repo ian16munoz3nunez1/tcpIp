@@ -118,12 +118,12 @@ def man():
     print(Fore.MAGENTA + "\tsft -i origen.txt ~~ sft -i origen.txt -o destino.txt")
 
     print(Fore.BLUE + "unzip" + Fore.RED + " --> " + Fore.WHITE + "Decomprime un archivo .zip")
-    print(Fore.YELLOW + "\t* -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo .zip de origen")
-    print(Fore.GREEN + "\t+ -d" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio destino")
+    print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo .zip de origen")
+    print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio destino")
     print(Fore.MAGENTA + "\tunzip -o archivo.zip ~~ unzip -o=archivo.zip -d=dirDestino")
 
     print(Fore.BLUE + "zip" + Fore.RED + " --> " + Fore.WHITE + "Comprime los archivos de un directorio de la victima")
-    print(Fore.YELLOW + "\t* -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo o directorio a comprimir")
-    print(Fore.GREEN + "\t+ -d" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo .zip de destino")
+    print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo o directorio a comprimir")
+    print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo .zip de destino")
     print(Fore.MAGENTA + "\tzip -o archivo.pdf ~~ zip -o=dirOrigen -d=archivo.zip")
 
