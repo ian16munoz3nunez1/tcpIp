@@ -23,6 +23,7 @@ class TCP:
         self.__host = host
         # port --> 1024-65535
         self.__port = port
+        self.__newPort = 8888
         # chunk --> 4MB para enviar informacion
         self.__chunk = 4194304
         self.__myOs = platform.system().lower()
@@ -85,6 +86,12 @@ class TCP:
         nombre = os.path.basename(nombre)
         return nombre
 
+    def newSock(self, host, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.settimeout(3)
+        return sock
+
     # Funcion para regresar si un archivo es una imagen
     # ubicacion --> ubicacion del archivo
     def isImage(self, ubicacion):
@@ -100,17 +107,29 @@ class TCP:
 
     # Funcion para enviar datos
     # info --> informacion a enviar
-    def enviarDatos(self, info):
+    def enviarDatos(self, info, s=None):
+        if s == None:
+            sock = self.__sock
+        else:
+            sock = s
+
         info = pickle.dumps(info)
         info = struct.pack('Q', len(info))+info
-        self.__sock.sendall(info)
+        sock.sendall(info)
 
     # Funcion para recibir datos
-    def recibirDatos(self):
+    def recibirDatos(self, s=None):
+        if s == None:
+            sock = self.__sock
+        else:
+            sock = s
+
         data = b''
         size = struct.calcsize('Q')
         while len(data) < size:
-            info = self.__sock.recv(self.__chunk)
+            info = sock.recv(self.__chunk)
+            if not info:
+                raise RuntimeError("Sin informacion")
             data += info
 
         dataSize = data[:size]
@@ -118,7 +137,7 @@ class TCP:
         byteSize = struct.unpack('Q', dataSize)[0]
 
         while len(data) < byteSize:
-            data += self.__sock.recv(self.__chunk)
+            data += sock.recv(self.__chunk)
 
         info = data[:byteSize]
         data = data[byteSize:]
@@ -129,41 +148,74 @@ class TCP:
 
     # Funcion para enviar un archivo
     # ubicacion --> ubicacion del archivo que se quiere enviar
-    def enviarArchivo(self, ubicacion):
+    def enviarArchivo(self, ubicacion, s=None):
+        if s == None:
+            sock = self.newSock(self.__host, self.__newPort)
+            while True:
+                try:
+                    sock.connect((self.__host, self.__newPort))
+                    break
+                except:
+                    sleep(0.1)
+        else:
+            sock = s
+
         peso = os.path.getsize(ubicacion)
         paquetes = int(peso/self.__chunk)
-        self.__sock.send(f"{peso}-{paquetes}".encode())
+        sock.send(f"{peso}-{paquetes}".encode())
 
         if peso > 0:
-            ok = self.__sock.recv(8)
+            ok = sock.recv(8)
             with open(ubicacion, 'rb') as archivo:
                 info = archivo.read(self.__chunk)
                 while info:
-                    self.enviarDatos(info)
-                    info = archivo.read(self.__chunk)
-                    msg = self.__sock.recv(8).decode()
-                    if msg == "end":
+                    try:
+                        self.enviarDatos(info, sock)
+                        info = archivo.read(self.__chunk)
+                        sock.recv(8)
+
+                    except:
                         break
+
             archivo.close()
+            if s == None:
+                sock.close()
 
     # Funcion para recibir un archivo
     # ubicacion --> ubicacion en donde se guardara el archivo recibido
-    def recibirArchivo(self, ubicacion):
-        peso = int(self.__sock.recv(1024).decode())
+    def recibirArchivo(self, ubicacion, s=None):
+        if s == None:
+            sock = self.newSock(self.__host, self.__newPort)
+            while True:
+                try:
+                    sock.connect((self.__host, self.__newPort))
+                    break
+                except:
+                    sleep(0.1)
+        else:
+            sock = s
+
+        peso = int(sock.recv(1024).decode())
 
         if peso > 0:
             with open(ubicacion, 'wb') as archivo:
-                self.__sock.send("ok".encode())
+                sock.send("ok".encode())
                 while True:
-                    info = self.recibirDatos()
-                    archivo.write(info)
+                    try:
+                        info = self.recibirDatos(sock)
+                        archivo.write(info)
 
-                    if len(info) < self.__chunk:
-                        self.__sock.send("end".encode())
+                        if len(info) < self.__chunk:
+                            break
+                        else:
+                            sock.send("ok".encode())
+
+                    except:
                         break
-                    else:
-                        self.__sock.send("ok".encode())
+
             archivo.close()
+            if s == None:
+                sock.close()
 
     # Funcion para enviar archivos de un directorio
     # origen --> ubicacion del directorio que se quiere enviar
@@ -289,6 +341,7 @@ class TCP:
 
             self.__sock.send("ok".encode())
             self.recibirArchivo(destino)
+            self.__sock.send("[*] Archivo creado".encode())
 
         else:
             self.__sock.send("ok".encode())
@@ -296,6 +349,7 @@ class TCP:
 
             self.__sock.send("ok".encode())
             self.recibirArchivo(destino)
+            self.__sock.send("[*] Archivo creado".encode())
 
     # Funcion para enviar una imagen al servidor
     # cmd --> comando recibido

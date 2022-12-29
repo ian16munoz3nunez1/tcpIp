@@ -24,6 +24,7 @@ class TCP:
         self.__host = host
         # port --> 1024-65535
         self.__port = port
+        self.__newPort = 8888
         # chunk -->  4MB para enviar informacion
         self.__chunk = 4194304
         self.__myOs = platform.system().lower()
@@ -91,6 +92,12 @@ class TCP:
         nombre = os.path.basename(nombre)
         return nombre
 
+    def newSock(self, host, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.settimeout(3)
+        return sock
+
     # Funcion para generar una clave de encriptacion
     # clave --> nombre del archivo en que se almacena la clave
     def generarClave(self, clave):
@@ -123,17 +130,29 @@ class TCP:
 
     # Funcion para enviar datos
     # info --> informacion a enviar
-    def enviarDatos(self, info):
+    def enviarDatos(self, info, conn=None):
+        if conn == None:
+            conexion = self.__conexion
+        else:
+            conexion = conn
+
         info = pickle.dumps(info)
         info = struct.pack('Q', len(info))+info
-        self.__conexion.sendall(info)
+        conexion.sendall(info)
 
     # Funcion para recibir datos
-    def recibirDatos(self):
+    def recibirDatos(self, conn=None):
+        if conn == None:
+            conexion = self.__conexion
+        else:
+            conexion = conn
+
         data = b''
         size = struct.calcsize('Q')
         while len(data) < size:
-            info = self.__conexion.recv(self.__chunk)
+            info = conexion.recv(self.__chunk)
+            if not info:
+                raise RuntimeError("Sin informacion")
             data += info
 
         dataSize = data[:size]
@@ -141,7 +160,7 @@ class TCP:
         byteSize = struct.unpack('Q', dataSize)[0]
 
         while len(data) < byteSize:
-            data += self.__conexion.recv(self.__chunk)
+            data += conexion.recv(self.__chunk)
 
         info = data[:byteSize]
         data = data[byteSize:]
@@ -152,9 +171,17 @@ class TCP:
 
     # Funcion para enviar un archivo
     # ubicacion --> ubicacion del archivo que se quiere enviar
-    def enviarArchivo(self, ubicacion):
+    def enviarArchivo(self, ubicacion, conn=None):
+        if conn == None:
+            sock = self.newSock(self.__host, self.__newPort)
+            sock.bind((self.__host, self.__newPort))
+            sock.listen(1)
+            conexion = sock.accept()[0]
+        else:
+            conexion = conn
+
         peso = os.path.getsize(ubicacion)
-        self.__conexion.send(f"{peso}".encode())
+        conexion.send(f"{peso}".encode())
 
         if peso > 0:
             paquetes = int(peso/self.__chunk)
@@ -162,19 +189,31 @@ class TCP:
                 paquetes = 1
             print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
-            ok = self.__conexion.recv(8)
+            keyInt = False
+            ok = conexion.recv(8)
             i = 0
             with open(ubicacion, 'rb') as archivo:
                 info = archivo.read(self.__chunk)
                 while info:
-                    self.enviarDatos(info)
-                    info = archivo.read(self.__chunk)
-                    print(f"Paquete {i} enviado", end='\r')
-                    i += 1
-                    msg = self.__conexion.recv(8).decode()
-                    if msg == "end":
+                    try:
+                        self.enviarDatos(info, conexion)
+                        info = archivo.read(self.__chunk)
+
+                        print(f"Paquete {i} enviado", end='\r')
+                        i += 1
+                        conexion.recv(8)
+
+                    except:
+                        print(Fore.YELLOW + "[!] Transferencia cancelada")
+                        keyInt = True
                         break
+
             archivo.close()
+            if conn == None:
+                conexion.close()
+                sock.close()
+            if keyInt:
+                return
 
             print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" enviado")
 
@@ -183,8 +222,16 @@ class TCP:
 
     # Funcion para recibir un archivo
     # ubicacion --> ubicacion en donde se guardara el archivo recibido
-    def recibirArchivo(self, ubicacion):
-        info = self.__conexion.recv(1024).decode().split('-')
+    def recibirArchivo(self, ubicacion, conn=None):
+        if conn == None:
+            sock = self.newSock(self.__host, self.__newPort)
+            sock.bind((self.__host, self.__newPort))
+            sock.listen(1)
+            conexion = sock.accept()[0]
+        else:
+            conexion = conn
+
+        info = conexion.recv(1024).decode().split('-')
         peso = int(info[0])
         paquetes = int(info[1])
 
@@ -193,21 +240,34 @@ class TCP:
                 paquetes = 1
             print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
-            i = 0
+            keyInt = False
+            i = 1
             with open(ubicacion, 'wb') as archivo:
-                self.__conexion.send("ok".encode())
+                conexion.send("ok".encode())
                 while True:
-                    info = self.recibirDatos()
-                    archivo.write(info)
+                    try:
+                        info = self.recibirDatos(conexion)
+                        archivo.write(info)
 
-                    if len(info) < self.__chunk:
-                        self.__conexion.send("end".encode())
+                        if len(info) < self.__chunk:
+                            break
+                        else:
+                            conexion.send("ok".encode())
+                            print(f"Paquete {i} recibido", end='\r')
+                            i += 1
+
+                    except:
+                        print(Fore.YELLOW + "[!] Transferencia cancelada")
+                        keyInt = True
                         break
-                    else:
-                        self.__conexion.send("ok".encode())
-                        print(f"Paquete {i+1} recibido", end='\r')
-                        i += 1
+
             archivo.close()
+            if conn == None:
+                conexion.close()
+                sock.close()
+            if keyInt:
+                return
+
             print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
 
         else:
@@ -415,6 +475,8 @@ class TCP:
 
                 ok = self.__conexion.recv(8)
                 self.enviarArchivo(origen)
+                msg = self.__conexion.recv(1024).decode()
+                print(Fore.CYAN + msg)
 
             else:
                 print(Fore.YELLOW + f"[!] Archivo \"{origen}\" no encontrado")
@@ -432,6 +494,8 @@ class TCP:
 
                 ok = self.__conexion.recv(8)
                 self.enviarArchivo(origen)
+                msg = self.__conexion.recv(1024).decode()
+                print(Fore.CYAN + msg)
 
             else:
                 print(Fore.YELLOW + f"[!] Archivo \"{origen}\" no encontrado")
