@@ -86,7 +86,7 @@ class TCP:
         nombre = os.path.basename(nombre)
         return nombre
 
-    def newSock(self, host, port):
+    def newSock(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.settimeout(3)
@@ -150,7 +150,7 @@ class TCP:
     # ubicacion --> ubicacion del archivo que se quiere enviar
     def enviarArchivo(self, ubicacion, s=None):
         if s == None:
-            sock = self.newSock(self.__host, self.__newPort)
+            sock = self.newSock()
             while True:
                 try:
                     sock.connect((self.__host, self.__newPort))
@@ -172,7 +172,9 @@ class TCP:
                     try:
                         self.enviarDatos(info, sock)
                         info = archivo.read(self.__chunk)
-                        sock.recv(8)
+                        msg = sock.recv(8).decode()
+                        if msg == "end":
+                            break
 
                     except:
                         break
@@ -185,7 +187,7 @@ class TCP:
     # ubicacion --> ubicacion en donde se guardara el archivo recibido
     def recibirArchivo(self, ubicacion, s=None):
         if s == None:
-            sock = self.newSock(self.__host, self.__newPort)
+            sock = self.newSock()
             while True:
                 try:
                     sock.connect((self.__host, self.__newPort))
@@ -206,6 +208,7 @@ class TCP:
                         archivo.write(info)
 
                         if len(info) < self.__chunk:
+                            sock.send("end".encode())
                             break
                         else:
                             sock.send("ok".encode())
@@ -221,7 +224,15 @@ class TCP:
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
     def enviarDirectorio(self, origen, index):
-        self.__sock.send("ok".encode())
+        sock = self.newSock()
+        while True:
+            try:
+                sock.connect((self.__host, self.__newPort))
+                break
+            except:
+                sleep(0.1)
+
+        sock.send("ok".encode())
         # Se obtiene el numero de archivos
         archivos = []
         for i in os.listdir(origen):
@@ -229,66 +240,87 @@ class TCP:
             if os.path.isfile(archivo):
                 archivos.append(archivo)
 
-        ok = self.__sock.recv(8)
+        ok = sock.recv(8)
         tam = len(archivos)
-        self.__sock.send(str(tam).encode())
+        sock.send(str(tam).encode())
 
         # Se comienzan a enviar los archivos
         if index > tam:
             index = 1
         while index <= tam:
-            nombre = self.getNombre(archivos[index-1])
-            peso = os.path.getsize(archivos[index-1])
-            paquetes = str(int(peso/self.__chunk))
-            info = nombre + '\n' + paquetes + '\n' + str(peso)
-            ok = self.__sock.recv(8)
-            self.__sock.send(info.encode())
+            try:
+                nombre = self.getNombre(archivos[index-1])
+                peso = os.path.getsize(archivos[index-1])
+                paquetes = str(int(peso/self.__chunk))
+                info = nombre + '\n' + paquetes + '\n' + str(peso)
+                ok = sock.recv(8)
+                sock.send(info.encode())
 
-            res = self.__sock.recv(8).decode()
-            if res == 'S':
-                self.enviarArchivo(archivos[index-1])
-                self.__sock.send("ok".encode())
-            elif res == "quit":
+                res = sock.recv(8).decode()
+                if res == 'S':
+                    self.enviarArchivo(archivos[index-1], sock)
+                    sock.send("ok".encode())
+                elif res == "quit":
+                    break
+                else:
+                    pass
+
+                index += 1
+
+            except:
                 break
-            else:
-                pass
 
-            index += 1
+        sock.close()
 
     # Funcion para recibir un directorio
     # destino --> directorio en el que se guardaran los archivos
     # index --> indice de referencia
     def recibirDirectorio(self, destino, index):
+        sock = self.newSock()
+        while True:
+            try:
+                sock.connect((self.__host, self.__newPort))
+                break
+            except:
+                sleep(0.1)
+
         # Si no existe el directorio destino, se crea
         if not os.path.isdir(destino):
             os.mkdir(destino)
 
         # Se recibe el numero de archivos
-        ok = self.__sock.recv(8)
-        self.__sock.send("ok".encode())
-        tam = int(self.__sock.recv(64).decode())
-        self.__sock.send("ok".encode())
+        sock.send("ok".encode())
+        tam = int(sock.recv(64).decode())
+        sock.send("ok".encode())
 
         # Se comienzan a recibir los archivos
         if index > tam:
             index = 1
         while index <= tam:
-            res = self.__sock.recv(8).decode()
+            try:
+                res = sock.recv(8).decode()
 
-            if res == 'S':
-                self.__sock.send("ok".encode())
-                nombre = self.__sock.recv(1024).decode()
+                if res == 'S':
+                    sock.send("ok".encode())
+                    nombre = sock.recv(1024).decode()
 
-                self.__sock.send("ok".encode())
-                self.recibirArchivo(f"{destino}/{nombre}")
-                ok = self.__sock.recv(8)
+                    sock.send("ok".encode())
+                    self.recibirArchivo(f"{destino}/{nombre}", sock)
+                    ok = sock.recv(8)
 
-            elif res == "quit":
+                elif res == "quit":
+                    break
+                else:
+                    pass
+
+                index += 1
+                sock.send(b"ok")
+
+            except Exception as e:
+                print(e)
                 break
-            else:
-                pass
 
-            index += 1
+        sock.close()
 
     # Funcion para cambiar de directorio
     # directorio --> directorio al que se quiere cambiar

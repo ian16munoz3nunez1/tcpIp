@@ -92,7 +92,7 @@ class TCP:
         nombre = os.path.basename(nombre)
         return nombre
 
-    def newSock(self, host, port):
+    def newSock(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.settimeout(3)
@@ -173,7 +173,7 @@ class TCP:
     # ubicacion --> ubicacion del archivo que se quiere enviar
     def enviarArchivo(self, ubicacion, conn=None):
         if conn == None:
-            sock = self.newSock(self.__host, self.__newPort)
+            sock = self.newSock()
             sock.bind((self.__host, self.__newPort))
             sock.listen(1)
             conexion = sock.accept()[0]
@@ -191,7 +191,7 @@ class TCP:
 
             keyInt = False
             ok = conexion.recv(8)
-            i = 0
+            i = 1
             with open(ubicacion, 'rb') as archivo:
                 info = archivo.read(self.__chunk)
                 while info:
@@ -201,7 +201,10 @@ class TCP:
 
                         print(f"Paquete {i} enviado", end='\r')
                         i += 1
-                        conexion.recv(8)
+
+                        msg = conexion.recv(8)
+                        if msg == "end":
+                            break
 
                     except:
                         print(Fore.YELLOW + "[!] Transferencia cancelada")
@@ -224,7 +227,7 @@ class TCP:
     # ubicacion --> ubicacion en donde se guardara el archivo recibido
     def recibirArchivo(self, ubicacion, conn=None):
         if conn == None:
-            sock = self.newSock(self.__host, self.__newPort)
+            sock = self.newSock()
             sock.bind((self.__host, self.__newPort))
             sock.listen(1)
             conexion = sock.accept()[0]
@@ -250,6 +253,7 @@ class TCP:
                         archivo.write(info)
 
                         if len(info) < self.__chunk:
+                            conexion.send("end".encode())
                             break
                         else:
                             conexion.send("ok".encode())
@@ -278,6 +282,11 @@ class TCP:
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
     def enviarDirectorio(self, origen, index, auto=None):
+        sock = self.newSock()
+        sock.bind((self.__host, self.__newPort))
+        sock.listen(1)
+        conexion = sock.accept()[0]
+
         # Se calcula el numero de archivos
         archivos = []
         for i in os.listdir(origen):
@@ -287,52 +296,59 @@ class TCP:
         tam = len(archivos)
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
-        self.__conexion.send("ok".encode())
-        ok = self.__conexion.recv(8)
-        self.__conexion.send(str(tam).encode())
-        ok = self.__conexion.recv(8)
+        ok = conexion.recv(8)
+        conexion.send(str(tam).encode())
+        ok = conexion.recv(8)
 
         # Se comienzan a enviar los archivos
         if index > tam:
             index = 1
         subidos = 0
         while index <= tam:
-            nombre = self.getNombre(archivos[index-1])
-            peso = os.path.getsize(archivos[index-1])
-            paquetes = int(peso/self.__chunk)
+            try:
+                nombre = self.getNombre(archivos[index-1])
+                peso = os.path.getsize(archivos[index-1])
+                paquetes = int(peso/self.__chunk)
 
-            if peso > 0:
-                if auto:
-                    print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
-                    res = 'S'
+                if peso > 0:
+                    if auto:
+                        print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
+                        res = 'S'
+                    else:
+                        print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
+                        res = input()
                 else:
-                    print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Subir \"{nombre}\" ({paquetes})?...\n[S/n] ", end='')
-                    res = input()
-            else:
-                print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
-                res = 'N'
+                    print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido ({nombre}, {paquetes})")
+                    res = 'N'
 
-            if len(res) == 0 or res.upper() == 'S':
-                self.__conexion.send('S'.encode())
+                if len(res) == 0 or res.upper() == 'S':
+                    conexion.send('S'.encode())
 
-                ok = self.__conexion.recv(8)
-                self.__conexion.send(nombre.encode())
+                    ok = conexion.recv(8)
+                    conexion.send(nombre.encode())
 
-                ok = self.__conexion.recv(8)
-                self.enviarArchivo(archivos[index-1])
-                self.__conexion.send("ok".encode())
+                    ok = conexion.recv(8)
+                    self.enviarArchivo(archivos[index-1], conexion)
+                    conexion.send("ok".encode())
 
-                subidos += 1
+                    subidos += 1
 
-            elif res.lower() == 'q' or res.lower() == "quit":
-                self.__conexion.send("quit".encode())
+                elif res.lower() == 'q' or res.lower() == "quit":
+                    conexion.send("quit".encode())
+                    break
+
+                else:
+                    conexion.send('N'.encode())
+
+                index += 1
+                conexion.recv(8)
+
+            except KeyboardInterrupt:
+                print(Fore.YELLOW + "[!] Transferencia de directorio cancelada")
                 break
 
-            else:
-                self.__conexion.send('N'.encode())
-
-            index += 1
-            sleep(0.05)
+        conexion.close()
+        sock.close()
 
         print(Fore.GREEN + f"[+] {subidos} archivos subidos de {tam}")
 
@@ -341,13 +357,18 @@ class TCP:
     # destino --> Directorio en el que se guardaran los archivos
     # index --> indice desde el que se quiere iniciar
     def recibirDirectorio(self, destino, index, auto=None):
+        sock = self.newSock()
+        sock.bind((self.__host, self.__newPort))
+        sock.listen(1)
+        conexion = sock.accept()[0]
+
         # Se recibe el numero de archivos
-        ok = self.__conexion.recv(8)
+        ok = conexion.recv(8)
         if not os.path.isdir(destino):
             os.mkdir(destino)
 
-        self.__conexion.send("ok".encode())
-        tam = int(self.__conexion.recv(64).decode())
+        conexion.send("ok".encode())
+        tam = int(conexion.recv(64).decode())
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
         # Se comienzan a recibir los archivos
@@ -355,37 +376,45 @@ class TCP:
             index = 1
         bajados = 0
         while index <= tam:
-            self.__conexion.send("ok".encode())
-            info = self.__conexion.recv(1024).decode()
-            info = info.split('\n')
-            nombre, paquetes, peso = info[:3]
-            peso = int(peso)
+            try:
+                conexion.send("ok".encode())
+                info = conexion.recv(1024).decode()
+                info = info.split('\n')
+                nombre, paquetes, peso = info[:3]
+                peso = int(peso)
 
-            if peso > 0:
-                if auto:
-                    print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
-                    res = 'S'
+                if peso > 0:
+                    if auto:
+                        print(Fore.MAGENTA + f"{index}/{tam}. ", end='')
+                        res = 'S'
+                    else:
+                        print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Bajar \"{nombre}\" (-p{paquetes}, -s{peso})?...\n[S/n] ", end='')
+                        res = input()
                 else:
-                    print(Fore.MAGENTA + f"\n[?] {index}/{tam}. Bajar \"{nombre}\" (-p{paquetes}, -s{peso})?...\n[S/n] ", end='')
-                    res = input()
-            else:
-                print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido (-p{paquetes}, -s{peso})")
-                res = 'N'
+                    print(Fore.YELLOW + f"\n[!] {index}/{tam}. Archivo \"{nombre}\" omitido (-p{paquetes}, -s{peso})")
+                    res = 'N'
 
-            if len(res) == 0 or res.upper() == 'S':
-                self.__conexion.send('S'.encode())
-                self.recibirArchivo(f"{destino}/{nombre}")
-                ok = self.__conexion.recv(8)
-                bajados += 1
+                if len(res) == 0 or res.upper() == 'S':
+                    conexion.send('S'.encode())
+                    self.recibirArchivo(f"{destino}/{nombre}", conexion)
+                    ok = conexion.recv(8)
+                    bajados += 1
 
-            elif res.lower() == 'q' or res.lower() == "quit":
-                self.__conexion.send("quit".encode())
+                elif res.lower() == 'q' or res.lower() == "quit":
+                    conexion.send("quit".encode())
+                    break
+
+                else:
+                    conexion.send('N'.encode())
+
+                index += 1
+
+            except KeyboardInterrupt:
+                print(Fore.YELLOW + "[!] Transferencia de directorio cancelada")
                 break
 
-            else:
-                self.__conexion.send('N'.encode())
-
-            index += 1
+        conexion.close()
+        sock.close()
 
         print(Fore.GREEN + f"[+] {bajados} archivos descargados de {tam}")
 
