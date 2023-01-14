@@ -201,7 +201,7 @@ class TCP:
 
         if peso > 0:
             with open(ubicacion, 'wb') as archivo:
-                sock.send("ok".encode())
+                sock.send(b'ok')
                 while True:
                     try:
                         info = self.recibirDatos(sock)
@@ -232,7 +232,7 @@ class TCP:
             except:
                 sleep(0.1)
 
-        sock.send("ok".encode())
+        sock.send(b'ok')
         # Se obtiene el numero de archivos
         archivos = []
         for i in os.listdir(origen):
@@ -240,7 +240,7 @@ class TCP:
             if os.path.isfile(archivo):
                 archivos.append(archivo)
 
-        ok = sock.recv(8)
+        sock.recv(8)
         tam = len(archivos)
         sock.send(str(tam).encode())
 
@@ -253,13 +253,13 @@ class TCP:
                 peso = os.path.getsize(archivos[index-1])
                 paquetes = str(int(peso/self.__chunk))
                 info = nombre + '\n' + paquetes + '\n' + str(peso)
-                ok = sock.recv(8)
+                sock.recv(8)
                 sock.send(info.encode())
 
                 res = sock.recv(8).decode()
                 if res == 'S':
                     self.enviarArchivo(archivos[index-1], sock)
-                    sock.send("ok".encode())
+                    sock.send(b"ok")
                 elif res == "quit":
                     break
                 else:
@@ -289,9 +289,8 @@ class TCP:
             os.mkdir(destino)
 
         # Se recibe el numero de archivos
-        sock.send("ok".encode())
         tam = int(sock.recv(64).decode())
-        sock.send("ok".encode())
+        sock.send(b'ok')
 
         # Se comienzan a recibir los archivos
         if index > tam:
@@ -301,12 +300,12 @@ class TCP:
                 res = sock.recv(8).decode()
 
                 if res == 'S':
-                    sock.send("ok".encode())
+                    sock.send(b'ok')
                     nombre = sock.recv(1024).decode()
 
-                    sock.send("ok".encode())
+                    sock.send(b'ok')
                     self.recibirArchivo(f"{destino}/{nombre}", sock)
-                    ok = sock.recv(8)
+                    sock.recv(8)
 
                 elif res == "quit":
                     break
@@ -314,10 +313,9 @@ class TCP:
                     pass
 
                 index += 1
-                sock.send(b"ok")
+                sock.send(b'ok')
 
-            except Exception as e:
-                print(e)
+            except:
                 break
 
         sock.close()
@@ -340,8 +338,8 @@ class TCP:
             origen = params['-i']
 
             if os.path.isfile(origen):
-                self.__sock.send("ok".encode())
-                ok = self.__sock.recv(8)
+                self.__sock.send(b'ok')
+                self.__sock.recv(8)
                 self.enviarArchivo(origen)
 
             else:
@@ -352,13 +350,13 @@ class TCP:
             origen = params['-i']
 
             if os.path.isfile(origen):
-                self.__sock.send("ok".encode())
+                self.__sock.send(b'ok')
 
-                ok = self.__sock.recv(8)
+                self.__sock.recv(8)
                 nombre = self.getNombre(origen)
                 self.__sock.send(nombre.encode())
 
-                ok = self.__sock.recv(8)
+                self.__sock.recv(8)
                 self.enviarArchivo(origen)
 
             else:
@@ -371,17 +369,17 @@ class TCP:
             params = self.parametros(cmd, r"(\s-[io]+[= ])")[0]
             destino = params['-o']
 
-            self.__sock.send("ok".encode())
+            self.__sock.send(b'ok')
             self.recibirArchivo(destino)
-            self.__sock.send("[*] Archivo creado".encode())
+            self.__sock.send(f"[*] Archivo \"{destino}\" creado".encode())
 
         else:
-            self.__sock.send("ok".encode())
+            self.__sock.send(b'ok')
             destino = self.__sock.recv(1024).decode()
 
-            self.__sock.send("ok".encode())
+            self.__sock.send(b'ok')
             self.recibirArchivo(destino)
-            self.__sock.send("[*] Archivo creado".encode())
+            self.__sock.send(f"[*] Archivo \"{destino}\" creado".encode())
 
     # Funcion para enviar una imagen al servidor
     # cmd --> comando recibido
@@ -487,8 +485,8 @@ class TCP:
                 index = 1
 
             if os.path.isdir(origen):
-                self.__sock.send("ok".encode())
-                ok = self.__sock.recv(8)
+                self.__sock.send(b'ok')
+                self.__sock.recv(8)
                 self.enviarDirectorio(origen, index)
 
             else:
@@ -509,11 +507,11 @@ class TCP:
                 index = 1
 
             if os.path.isdir(origen):
-                self.__sock.send("ok".encode())
-                ok = self.__sock.recv(8)
+                self.__sock.send(b'ok')
+                self.__sock.recv(8)
                 self.__sock.send(self.getNombre(origen).encode())
 
-                ok = self.__sock.recv(8)
+                self.__sock.recv(8)
                 self.enviarDirectorio(origen, index)
 
             else:
@@ -536,7 +534,7 @@ class TCP:
             else:
                 index = 1
 
-            self.__sock.send("ok".encode())
+            self.__sock.send(b'ok')
             self.recibirDirectorio(destino, index)
 
         else:
@@ -552,10 +550,10 @@ class TCP:
             else:
                 index = 1
 
-            self.__sock.send("ok".encode())
+            self.__sock.send(b'ok')
             destino = self.__sock.recv(1024).decode()
 
-            self.__sock.send("ok".encode())
+            self.__sock.send(b'ok')
             self.recibirDirectorio(destino, index)
 
     # Funcion para comprimir un directorio

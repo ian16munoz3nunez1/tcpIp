@@ -190,7 +190,7 @@ class TCP:
             print(Fore.CYAN + f"[*] Paquetes estimados: {paquetes}")
 
             keyInt = False
-            ok = conexion.recv(8)
+            conexion.recv(8)
             i = 1
             with open(ubicacion, 'rb') as archivo:
                 info = archivo.read(self.__chunk)
@@ -207,7 +207,6 @@ class TCP:
                             break
 
                     except:
-                        print(Fore.YELLOW + "[!] Transferencia cancelada")
                         keyInt = True
                         break
 
@@ -216,6 +215,7 @@ class TCP:
                 conexion.close()
                 sock.close()
             if keyInt:
+                print(end='\r')
                 return
 
             print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" enviado")
@@ -246,7 +246,7 @@ class TCP:
             keyInt = False
             i = 1
             with open(ubicacion, 'wb') as archivo:
-                conexion.send("ok".encode())
+                conexion.send(b'ok')
                 while True:
                     try:
                         info = self.recibirDatos(conexion)
@@ -261,7 +261,6 @@ class TCP:
                             i += 1
 
                     except:
-                        print(Fore.YELLOW + "[!] Transferencia cancelada")
                         keyInt = True
                         break
 
@@ -270,6 +269,7 @@ class TCP:
                 conexion.close()
                 sock.close()
             if keyInt:
+                print(end='\r')
                 return
 
             print(Fore.GREEN + f"[+] Archivo \"{ubicacion}\" creado")
@@ -296,9 +296,8 @@ class TCP:
         tam = len(archivos)
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
-        ok = conexion.recv(8)
         conexion.send(str(tam).encode())
-        ok = conexion.recv(8)
+        conexion.recv(8)
 
         # Se comienzan a enviar los archivos
         if index > tam:
@@ -324,12 +323,12 @@ class TCP:
                 if len(res) == 0 or res.upper() == 'S':
                     conexion.send('S'.encode())
 
-                    ok = conexion.recv(8)
+                    conexion.recv(8)
                     conexion.send(nombre.encode())
 
-                    ok = conexion.recv(8)
+                    conexion.recv(8)
                     self.enviarArchivo(archivos[index-1], conexion)
-                    conexion.send("ok".encode())
+                    conexion.send(b'ok')
 
                     subidos += 1
 
@@ -344,7 +343,6 @@ class TCP:
                 conexion.recv(8)
 
             except KeyboardInterrupt:
-                print(Fore.YELLOW + "[!] Transferencia de directorio cancelada")
                 break
 
         conexion.close()
@@ -367,7 +365,7 @@ class TCP:
         if not os.path.isdir(destino):
             os.mkdir(destino)
 
-        conexion.send("ok".encode())
+        conexion.send(b'ok')
         tam = int(conexion.recv(64).decode())
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
@@ -377,7 +375,7 @@ class TCP:
         bajados = 0
         while index <= tam:
             try:
-                conexion.send("ok".encode())
+                conexion.send(b'ok')
                 info = conexion.recv(1024).decode()
                 info = info.split('\n')
                 nombre, paquetes, peso = info[:3]
@@ -397,7 +395,7 @@ class TCP:
                 if len(res) == 0 or res.upper() == 'S':
                     conexion.send('S'.encode())
                     self.recibirArchivo(f"{destino}/{nombre}", conexion)
-                    ok = conexion.recv(8)
+                    conexion.recv(8)
                     bajados += 1
 
                 elif res.lower() == 'q' or res.lower() == "quit":
@@ -405,12 +403,11 @@ class TCP:
                     break
 
                 else:
-                    conexion.send('N'.encode())
+                    conexion.send(b'N')
 
                 index += 1
 
             except KeyboardInterrupt:
-                print(Fore.YELLOW + "[!] Transferencia de directorio cancelada")
                 break
 
         conexion.close()
@@ -472,7 +469,7 @@ class TCP:
             self.__conexion.send(cmd.encode())
             msg = self.__conexion.recv(1024).decode()
             if msg[:6] != "error:":
-                self.__conexion.send("ok".encode())
+                self.__conexion.send(b'ok')
                 self.recibirArchivo(destino)
 
             else:
@@ -483,10 +480,10 @@ class TCP:
 
             msg = self.__conexion.recv(1024).decode()
             if msg[:6] != "error:":
-                self.__conexion.send("ok".encode())
+                self.__conexion.send(b'ok')
                 destino = self.__conexion.recv(1024).decode()
 
-                self.__conexion.send("ok".encode())
+                self.__conexion.send(b'ok')
                 self.recibirArchivo(destino)
 
             else:
@@ -502,7 +499,7 @@ class TCP:
             if os.path.isfile(origen):
                 self.__conexion.send(cmd.encode())
 
-                ok = self.__conexion.recv(8)
+                self.__conexion.recv(8)
                 self.enviarArchivo(origen)
                 msg = self.__conexion.recv(1024).decode()
                 print(Fore.CYAN + msg)
@@ -517,11 +514,11 @@ class TCP:
             if os.path.isfile(origen):
                 self.__conexion.send(cmd.encode())
 
-                ok = self.__conexion.recv(8)
+                self.__conexion.recv(8)
                 nombre = self.getNombre(origen)
                 self.__conexion.send(nombre.encode())
 
-                ok = self.__conexion.recv(8)
+                self.__conexion.recv(8)
                 self.enviarArchivo(origen)
                 msg = self.__conexion.recv(1024).decode()
                 print(Fore.CYAN + msg)
@@ -670,7 +667,7 @@ class TCP:
             self.__conexion.send(cmd.encode())
             msg = self.__conexion.recv(1024).decode()
             if msg[:6] != "error:":
-                self.__conexion.send("ok".encode())
+                self.__conexion.send(b'ok')
                 if flags:
                     self.recibirDirectorio(destino, index, 1)
                 else:
@@ -694,10 +691,10 @@ class TCP:
             self.__conexion.send(cmd.encode())
             msg = self.__conexion.recv(1024).decode()
             if msg[:6] != "error:":
-                self.__conexion.send("ok".encode())
+                self.__conexion.send(b'ok')
                 destino = self.__conexion.recv(1024).decode()
 
-                self.__conexion.send("ok".encode())
+                self.__conexion.send(b'ok')
                 if flags:
                     self.recibirDirectorio(destino, index, 1)
                 else:
@@ -729,7 +726,7 @@ class TCP:
             if os.path.isdir(origen):
                 self.__conexion.send(cmd.encode())
 
-                ok = self.__conexion.recv(8)
+                self.__conexion.recv(8)
                 if flags:
                     self.enviarDirectorio(origen, index, 1)
                 else:
@@ -758,11 +755,11 @@ class TCP:
             if os.path.isdir(origen):
                 self.__conexion.send(cmd.encode())
 
-                ok = self.__conexion.recv(8)
+                self.__conexion.recv(8)
                 destino = self.getNombre(origen)
                 self.__conexion.send(destino.encode())
 
-                ok = self.__conexion.recv(8)
+                self.__conexion.recv(8)
                 if flags:
                     self.enviarDirectorio(origen, index, 1)
                 else:
