@@ -5,11 +5,12 @@ import base64
 import time
 
 class UDP:
-    def __init__(self, host, port):
+    def __init__(self, host, port, myos):
         self.__host = host
         self.__port = port
         self.__chunk = 64*1024
         self.__addr = (self.__host, self.__port)
+        self.__myos = myos
 
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1)
@@ -19,7 +20,11 @@ class UDP:
         self.__sock.sendto(''.encode(), self.__addr)
 
     def captura(self, camara):
-        captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+        if self.__myos == "windows":
+            captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+        else:
+            captura = cv2.VideoCapture(camara)
+
         while True:
             leido, video = captura.read()
             if not leido:

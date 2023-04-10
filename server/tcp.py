@@ -649,28 +649,30 @@ class TCP:
     # cmd --> comando ingresado
     def captura(self, cmd):
         flags = self.parametros(cmd, r"(\s-c[= ])", r"\s-s\s?")[1]
-        udp = UDP(self.__host, self.__port)
+        udp = UDP(self.__host, self.__newPort)
         self.__conexion.send(cmd.encode())
 
         msg = self.__conexion.recv(1024).decode()
-        if msg[:6].lower() != "error:":
-            try:
-                udp.conectar()
-                self.__conexion.send("ok".encode())
-                if flags:
-                    udp.captura(self.__userName, 1)
-                else:
-                    udp.captura(self.__userName)
-                sleep(0.1)
-                udp.close()
-                msg = self.__conexion.recv(1024).decode()
-                print(msg)
-            except:
-                udp.close()
-                msg = self.__conexion.recv(1024).decode()
-                print(msg)
-        else:
-            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+        self.printMsg(msg)
+        if msg[0:3] == '[!]':
+            udp.close()
+            return
+
+        try:
+            udp.conectar()
+            self.__conexion.send(b'ok')
+            if flags:
+                udp.captura(self.__userName, 1)
+            else:
+                udp.captura(self.__userName)
+            sleep(0.1)
+            udp.close()
+            msg = self.__conexion.recv(1024).decode()
+            self.printMsg(msg)
+        except:
+            udp.close()
+            msg = self.__conexion.recv(1024).decode()
+            self.printMsg(msg)
 
     # Funcion para recibir un directorio del cliente
     # cmd --> comando ingresado

@@ -447,31 +447,34 @@ class TCP:
     # cmd --> comando recibido
     def captura(self, cmd):
         params = self.parametros(cmd, r"(\s-c[= ])", r"\s-s\s?")[0]
-        try:
-            camara = int(params['-c'])
-        except:
-            camara = 0
-        udp = UDP(self.__host, self.__port)
+        
+        camara = int(params['-c'])
+        udp = UDP(self.__host, self.__newPort, self.__myOs)
 
-        captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+        if self.__myOs == "windows":
+            captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
+        else:
+            captura = cv2.VideoCapture(camara)
         leido = captura.read()[0]
+        captura.release()
 
         if leido:
-            self.__sock.send("ok".encode())
+            self.__sock.send("[+] info: ok".encode())
             try:
                 udp.conectar()
-                ok = self.__sock.recv(8)
+                self.__sock.recv(8)
                 udp.captura(camara)
                 udp.close()
                 captura.release()
-                self.__sock.send("client-UDP desconectado".encode())
+                self.__sock.send("[+] info: client-UDP desconectado".encode())
             except:
                 udp.close()
                 captura.release()
-                self.__sock.send("client-UDP desconectado".encode())
+                self.__sock.send("[+] info: client-UDP desconectado".encode())
         else:
-            self.__sock.send(f"error: Camara \"{camara}\" no encontrada".encode())
+            udp.close()
             captura.release()
+            self.__sock.send(f"[!] warning: Camara \"{camara}\" no encontrada".encode())
 
     # Funcion para enviar un directorio al servidor
     # cmd --> comando recibido
