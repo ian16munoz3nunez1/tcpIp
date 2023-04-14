@@ -291,7 +291,7 @@ class TCP:
     # cmd --> comando ejecutado
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
-    def enviarDirectorio(self, origen, index, auto=None):
+    def enviarDirectorio(self, origen, x, auto=None):
         sock = self.newSock()
         sock.bind((self.__host, self.__newPort))
         sock.listen(1)
@@ -302,7 +302,10 @@ class TCP:
         for i in os.listdir(origen):
             archivo = f"{origen}/{i}"
             if os.path.isfile(archivo):
-                archivos.append(archivo)
+                if x == '*':
+                    archivos.append(archivo)
+                if x != '*' and archivo.endswith(x):
+                    archivos.append(archivo)
         tam = len(archivos)
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
@@ -310,8 +313,7 @@ class TCP:
         conexion.recv(8)
 
         # Se comienzan a enviar los archivos
-        if index > tam:
-            index = 1
+        index = 1
         subidos = 0
         while index <= tam:
             try:
@@ -364,14 +366,14 @@ class TCP:
     # cmd --> comando ejecutado
     # destino --> Directorio en el que se guardaran los archivos
     # index --> indice desde el que se quiere iniciar
-    def recibirDirectorio(self, destino, index, auto=None):
+    def recibirDirectorio(self, destino, auto=None):
         sock = self.newSock()
         sock.bind((self.__host, self.__newPort))
         sock.listen(1)
         conexion = sock.accept()[0]
 
         # Se recibe el numero de archivos
-        ok = conexion.recv(8)
+        conexion.recv(8)
         if not os.path.isdir(destino):
             os.mkdir(destino)
 
@@ -380,8 +382,7 @@ class TCP:
         print(Fore.CYAN + f"[*] Numero de archivos: {tam}")
 
         # Se comienzan a recibir los archivos
-        if index > tam:
-            index = 1
+        index = 1
         bajados = 0
         while index <= tam:
             try:
@@ -678,106 +679,62 @@ class TCP:
     # cmd --> comando ingresado
     def sendDirFrom(self, cmd):
         if re.search(r"\s-o[= ]", cmd):
-            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
+            params, flags = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")
             destino = params['-o']
 
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
-
             self.__conexion.send(cmd.encode())
             msg = self.__conexion.recv(1024).decode()
-            if msg[:6] != "error:":
-                self.__conexion.send(b'ok')
-                if flags:
-                    self.recibirDirectorio(destino, index, 1)
-                else:
-                    self.recibirDirectorio(destino, index)
+            self.printMsg(msg)
+            if msg[0:3] == '[!]':
+                return
+
+            self.__conexion.send(b'ok')
+            if flags:
+                self.recibirDirectorio(destino, 1)
             else:
-                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+                self.recibirDirectorio(destino)
 
         else:
-            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
-
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
+            params, flags = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")
 
             self.__conexion.send(cmd.encode())
             msg = self.__conexion.recv(1024).decode()
-            if msg[:6] != "error:":
-                self.__conexion.send(b'ok')
-                destino = self.__conexion.recv(1024).decode()
+            self.printMsg(msg)
+            if msg[0:3] == '[!]':
+                return
 
-                self.__conexion.send(b'ok')
-                if flags:
-                    self.recibirDirectorio(destino, index, 1)
-                else:
-                    self.recibirDirectorio(destino, index)
+            self.__conexion.send(b'ok')
+            destino = self.__conexion.recv(1024).decode()
+
+            self.__conexion.send(b'ok')
+            if flags:
+                self.recibirDirectorio(destino, 1)
             else:
-                print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+                self.recibirDirectorio(destino)
 
     # Funcion para enviar un directorio al cliente
     # cmd --> comando ingresado
     def sendDirTo(self, cmd):
         if re.search(r"\s-o[= ]", cmd):
-            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
-
-            if '-i' in params.keys():
-                origen = params['-i']
-            else:
-                origen = 'input'
-
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
+            params, flags = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")
+            origen = params['-i']
+            x = params['-x'] if '-x' in params.keys() else '*'
 
             if os.path.isdir(origen):
                 self.__conexion.send(cmd.encode())
 
                 self.__conexion.recv(8)
                 if flags:
-                    self.enviarDirectorio(origen, index, 1)
+                    self.enviarDirectorio(origen, x, 1)
                 else:
-                    self.enviarDirectorio(origen, index)
+                    self.enviarDirectorio(origen, x)
             else:
                 print(Fore.YELLOW + f"Directorio \"{origen}\" no encontrado")
 
         else:
-            params, flags = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")
-
-            if '-i' in params.keys():
-                origen = params['-i']
-            else:
-                origen = 'input'
-
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
+            params, flags = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")
+            origen = params['-i']
+            x = params['-x'] if '-x' in params.keys() else '*'
 
             if os.path.isdir(origen):
                 self.__conexion.send(cmd.encode())
@@ -788,9 +745,9 @@ class TCP:
 
                 self.__conexion.recv(8)
                 if flags:
-                    self.enviarDirectorio(origen, index, 1)
+                    self.enviarDirectorio(origen, x, 1)
                 else:
-                    self.enviarDirectorio(origen, index)
+                    self.enviarDirectorio(origen, x)
             else:
                 print(Fore.YELLOW + f"Directorio \"{origen}\" no encotrado")
 

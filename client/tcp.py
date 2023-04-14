@@ -225,7 +225,7 @@ class TCP:
     # Funcion para enviar archivos de un directorio
     # origen --> ubicacion del directorio que se quiere enviar
     # index --> indice desde el que se quiere iniciar
-    def enviarDirectorio(self, origen, index):
+    def enviarDirectorio(self, origen, x):
         sock = self.newSock()
         while True:
             try:
@@ -240,15 +240,17 @@ class TCP:
         for i in os.listdir(origen):
             archivo = f"{origen}/{i}"
             if os.path.isfile(archivo):
-                archivos.append(archivo)
+                if x == '*':
+                    archivos.append(archivo)
+                if x != '*' and archivo.endswith(x):
+                    archivos.append(archivo)
 
         sock.recv(8)
         tam = len(archivos)
         sock.send(str(tam).encode())
 
         # Se comienzan a enviar los archivos
-        if index > tam:
-            index = 1
+        index = 1
         while index <= tam:
             try:
                 nombre = self.getNombre(archivos[index-1])
@@ -277,7 +279,7 @@ class TCP:
     # Funcion para recibir un directorio
     # destino --> directorio en el que se guardaran los archivos
     # index --> indice de referencia
-    def recibirDirectorio(self, destino, index):
+    def recibirDirectorio(self, destino):
         sock = self.newSock()
         while True:
             try:
@@ -295,8 +297,7 @@ class TCP:
         sock.send(b'ok')
 
         # Se comienzan a recibir los archivos
-        if index > tam:
-            index = 1
+        index = 1
         while index <= tam:
             try:
                 res = sock.recv(8).decode()
@@ -480,90 +481,52 @@ class TCP:
     # cmd --> comando recibido
     def sendDirFrom(self, cmd):
         if re.search(r"\s-o[= ]", cmd):
-            params = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")[0]
+            params = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")[0]
             origen = params['-i']
-
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
+            x = params['-x'] if '-x' in params.keys() else '*'
 
             if os.path.isdir(origen):
-                self.__sock.send(b'ok')
+                self.__sock.send("[+] info: ok".encode())
                 self.__sock.recv(8)
-                self.enviarDirectorio(origen, index)
+                self.enviarDirectorio(origen, x)
 
             else:
-                self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
+                self.__sock.send(f"[!] warning: Directorio \"{origen}\" no encontrado".encode())
 
         else:
-            params = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")[0]
+            params = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")[0]
             origen = params['-i']
-
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
+            x = params['-x'] if '-x' in params.keys() else '*'
 
             if os.path.isdir(origen):
-                self.__sock.send(b'ok')
+                self.__sock.send("[+] info: ok".encode())
                 self.__sock.recv(8)
                 self.__sock.send(self.getNombre(origen).encode())
 
                 self.__sock.recv(8)
-                self.enviarDirectorio(origen, index)
+                self.enviarDirectorio(origen, x)
 
             else:
-                self.__sock.send(f"error: Directorio \"{origen}\" no encontrado".encode())
+                self.__sock.send(f"[!] warning: Directorio \"{origen}\" no encontrado".encode())
 
     # Funcion para recibir un directorio del servidor
     # cmd --> comando recibido
     def sendDirTo(self, cmd):
         if re.search(r"\s-o[= ]", cmd):
-            params = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")[0]
+            params = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")[0]
             destino = params['-o']
 
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
-
             self.__sock.send(b'ok')
-            self.recibirDirectorio(destino, index)
+            self.recibirDirectorio(destino)
 
         else:
-            params = self.parametros(cmd, r"(\s-[iop]+[= ])", r"\s-a\s?")[0]
-
-            if '-p' in params.keys():
-                try:
-                    index = int(params['-p'])
-                    if index <= 0:
-                        index = 1
-                except:
-                    index = 1
-            else:
-                index = 1
+            params = self.parametros(cmd, r"(\s-[iox]+[= ])", r"\s-a\s?")[0]
 
             self.__sock.send(b'ok')
             destino = self.__sock.recv(1024).decode()
 
             self.__sock.send(b'ok')
-            self.recibirDirectorio(destino, index)
+            self.recibirDirectorio(destino)
 
     # Funcion para comprimir un directorio
     # cmd --> comando recibido
