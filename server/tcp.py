@@ -908,21 +908,15 @@ class TCP:
 
     def screenShot(self, cmd):
         params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
-        directorio = '.'
-        if '-o' in params.keys():
-            directorio = params['-o']
+        directorio = params['-o'] if '-o' in params.keys() else '.'
         if not os.path.isdir(directorio):
             os.mkdir(directorio)
 
-        n = 1
-        t = 0
-        if '-n' in params.keys():
-            n = int(params['-n'])
-        if '-t' in params.keys():
-            t = int(params['-t'])
+        n = int(params['-n']) if '-n' in params.keys() else 1
+        t = float(params['-t']) if '-t' in params.keys() else 0.0
 
-        if t < 1 and n > 1:
-            print(Fore.YELLOW + f"[!] El parametro '-t' debe ser mayor o igual a 1\nt es {t}")
+        if t < 0.1 and n > 1:
+            print(Fore.YELLOW + f"[!] El parametro '-t' debe ser mayor o igual a 0.1\nt es {t}")
             return
 
         self.__conexion.send(cmd.encode())

