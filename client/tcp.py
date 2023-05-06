@@ -28,6 +28,10 @@ class TCP:
         # chunk --> 4MB para enviar informacion
         self.__chunk = 4194304
         self.__myOs = platform.system().lower()
+        if self.__myOs == "windows":
+            self.__home = f"C:\\Users\\{getpass.getuser()}"
+        if self.__myOs == "linux":
+            self.__home = f"/home/{getpass.getuser()}"
         self.__userName = getpass.getuser()
 
     def conectar(self):
@@ -326,6 +330,7 @@ class TCP:
     # Funcion para cambiar de directorio
     # directorio --> directorio al que se quiere cambiar
     def cd(self, directorio):
+        directorio = directorio.replace('~', self.__home) if directorio[0] == '~' else directorio
         if os.path.isdir(directorio):
             os.chdir(directorio)
             self.__sock.send(os.getcwd().encode())
