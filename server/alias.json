@@ -1,0 +1,10 @@
+[
+    {
+        "la": "ls -A ",
+        "imgr": "img -r ",
+        "sffi": "sff -i ",
+        "sdfi": "sdf -a -i ",
+        "pic0": "pic -c 0",
+        "cap0": "cap -c 0"
+    }
+]
