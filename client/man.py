@@ -76,6 +76,8 @@ def man():
     print(Fore.BLUE + "\nlendir" + Fore.RED + " --> " + Fore.WHITE + "Muestra al numero de elementos de un directorio")
     print(Fore.MAGENTA + "\tlendir dirPath")
 
+    print(Fore.BLUE + "\nmialias" + Fore.RED + " --> " + Fore.WHITE + "Muestra los alias que se encuentran en el archivo \'alias.json\'")
+
     print(Fore.BLUE + "\nmiwget" + Fore.RED + " --> " + Fore.WHITE + "Descarga un archivo de internet en la maquina del cliente")
     print(Fore.YELLOW + "\t* -u" + Fore.RED + " --> " + Fore.WHITE + "Especifica la url del archivo")
     print(Fore.GREEN + "\t+ -n" + Fore.RED + " --> " + Fore.WHITE + "Especifica el nombre del archivo")

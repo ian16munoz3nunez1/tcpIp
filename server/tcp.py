@@ -8,6 +8,7 @@ import struct
 import cv2
 import numpy
 import platform
+import getpass
 from time import sleep
 from colorama import init
 from colorama.ansi import Fore
@@ -57,7 +58,10 @@ class TCP:
         self.__currentDir = info[2]
 
         # Se cargan los alias del archivo JSON
-        archivo = open('alias.json', 'r')
+        if self.__myOs == 'windows':
+            archivo = open(f'C:\\Users\\{getpass.getuser()}\\.tcpIpy\\server\\alias.json', 'r')
+        if self.__myOs == 'linux':
+            archivo = open(f'/home/{getpass.getuser()}/.tcpIpy/server/alias.json', 'r')
         lista = json.load(archivo)
         archivo.close()
         self.__alias = lista[0]
@@ -909,7 +913,7 @@ class TCP:
                     logo()
                     man()
 
-                elif x.lower() == "myalias":
+                elif x.lower() == "mialias":
                     for k, v in self.__alias.items():
                         print(f"{k}=\'{v}\'")
 
