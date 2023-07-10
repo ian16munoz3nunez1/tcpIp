@@ -933,15 +933,20 @@ class TCP:
             while True:
                 self.terminal()
                 cmd = input()
-                x = re.match(r"^!?\w+", cmd)[0] # Se obtiene el comando ingresado con re
+                try:
+                    x = re.match(r"^!?\w+", cmd)[0] # Se obtiene el comando ingresado con re
 
-                # Se revisa si el comando esta en los alias
-                if x in self.__alias.keys():
-                    cmd = re.sub(f"^{x}\s?", self.__alias[x], cmd) # Se sustituye el alias en el comando
-                    x = re.match(r"^!?\w+", cmd)[0] # Se obtiene el comando de nuevo
+                    # Se revisa si el comando esta en los alias
+                    if x in self.__alias.keys():
+                        cmd = re.sub(f"^{x}\s?", self.__alias[x], cmd) # Se sustituye el alias en el comando
+                        x = re.match(r"^!?\w+", cmd)[0] # Se obtiene el comando de nuevo
+
+                except:
+                    pass
 
                 if cmd == '' or cmd.replace(' ', '') == '':
-                    print(Fore.YELLOW + f"[!] Comando invalido")
+                    print()
+                    continue
 
                 # Si el comando es 'help'
                 # Se despliega un mensaje de ayuda
