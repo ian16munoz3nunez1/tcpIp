@@ -84,6 +84,7 @@ class TCP:
 
     # Imprime la terminal
     def terminal(self):
+        print()
         print(Fore.GREEN + "\u250c\u2500\u2500(" + Fore.BLUE + f"{self.__userName}~{self.__hostName}" + Fore.GREEN + ")-[" + Fore.WHITE + self.__currentDir + Fore.GREEN + ']')
         print(Fore.GREEN + "\u2514\u2500" + Fore.BLUE + "> ", end='')
 

@@ -1,5 +1,6 @@
 [
     {
+        "ls": "ls -C ",
         "la": "ls -A ",
         "imgr": "img -r ",
         "sffi": "sff -i ",
