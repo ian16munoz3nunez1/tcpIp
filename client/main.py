@@ -11,12 +11,12 @@ if len(sys.argv) == 1:
     tcp.conectar()
     tcp.shell()
 
-if len(sys.argv) == 2:
+elif len(sys.argv) == 2:
     if sys.argv[1] == "--help" or sys.argv[1] == "-h":
         logo()
         man()
     else:
-        exit()
+        sys.exit()
 
 elif len(sys.argv) == 3:
     try:
@@ -27,8 +27,8 @@ elif len(sys.argv) == 3:
         tcp.conectar()
         tcp.shell()
     except:
-        exit()
+        sys.exit()
 
 else:
-    exit()
+    sys.exit()
 
