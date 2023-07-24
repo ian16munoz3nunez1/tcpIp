@@ -930,8 +930,8 @@ class TCP:
 
     # Funcion para ingresar y evaluar comandos
     def shell(self):
-        try:
-            while True:
+        while True:
+            try:
                 self.terminal()
                 cmd = input()
                 try:
@@ -1253,6 +1253,8 @@ class TCP:
                         print(Fore.RED + "[-] Error al ejecutar el comando")
                         print(e)
 
-        except Exception as e:
-            print(Fore.RED + "Excepcion en el programa principal")
-            print(e)
+            except Exception as e:
+                self.printMsg(f"\n[-] Excepcion en el programa principal\n{str(e)}")
+                self.__conexion.close()
+                self.__sock.close()
+

