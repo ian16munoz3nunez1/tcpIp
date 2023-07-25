@@ -530,12 +530,14 @@ class TCP:
         self.__conexion.send(cmd.encode())
 
         msg = self.__conexion.recv(1042).decode()
-        if msg[:6] != "error:":
-            if len(msg) > 40:
-                msg = f"... {msg[-40:]}"
-            self.__currentDir = msg
-        else:
-            print(Fore.RED + f"[-] {self.__userName}@{self.__addr[0]}: {msg}")
+
+        if msg[:3] == "[-]":
+            self.printMsg(msg)
+            return
+
+        if len(msg) > 40:
+            msg = f"... {msg[-40:]}"
+        self.__currentDir = msg
 
     # Funcion para recibir un archivo del cliente
     # cmd --> comando ingresado

