@@ -951,8 +951,7 @@ class TCP:
                     print()
                     continue
 
-                # Si el comando es 'help'
-                # Se despliega un mensaje de ayuda
+                # help
                 elif x.lower() == "help":
                     logo()
                     man()
@@ -967,8 +966,7 @@ class TCP:
                     for k, v in self.__dirs.items():
                         print(f"{k}=\'{v}\'")
 
-                # Si el primer caracter del comando es '!',
-                # se ejecuta un comando local
+                # !
                 elif x[0] == '!':
                     try:
                         self.local(cmd[1:])
@@ -977,15 +975,14 @@ class TCP:
                         print(Fore.RED + "[-] Error de sintaxis local")
                         print(e)
 
-                # Si el comando es 'clear', 'cls' o 'clc'
-                # se limpia la terminal
+                # clear
                 elif x.lower() == "clear" or x.lower() == "cls" or x.lower() == "clc":
                     if self.__myOs == "linux" or self.__myOs == "darwin":
                         os.system("clear")
                     if self.__myOs == "windows":
                         os.system("cls")
 
-                # Si el comando es 'exit'...
+                # exit
                 elif x.lower() == "exit":
                     try:
                         # Se manda a llamar a la funcion 'self.exit'
@@ -998,7 +995,7 @@ class TCP:
                         print(Fore.RED + "[-] Error al terminar la conexion")
                         print(e)
 
-                # Si el comando es 'q' o 'quit'...
+                # quit
                 elif x.lower() == 'q' or x.lower() == "quit":
                     try:
                         # Se cierra todo pero el cliente se
@@ -1010,7 +1007,7 @@ class TCP:
                         print(Fore.RED + "[-] Error al cerrar el programa")
                         print(e)
 
-                # Si el comando es 'cd'...
+                # cd
                 elif x.lower() == "cd":
                     try:
                         # Se manda a llamar a la funcion 'self.cd'
@@ -1020,7 +1017,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (cd)")
                         print(e)
 
-                # Si el comando es 'sff'...
+                # sff
                 elif x.lower() == "sff":
                     try:
                         if re.search(r"\s-i[= ]", cmd):
@@ -1035,7 +1032,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (sff)")
                         print(e)
 
-                # Si el comando es 'sft'...
+                # sft
                 elif x.lower() == "sft":
                     try:
                         if re.search(r"\s-i[= ]", cmd):
@@ -1049,7 +1046,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (sft)")
                         print(e)
 
-                # Si el comando es 'img'
+                # img
                 elif x.lower() == "img":
                     try:
                         if re.search(r"\s-i[= ]", cmd) or re.search(r"\s-r\s?", cmd):
@@ -1063,7 +1060,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (img)")
                         print(e)
 
-                # Si el comando es 'pic'...
+                # pic
                 elif x.lower() == "pic":
                     try:
                         if re.search(r"\s-c[= ]", cmd):
@@ -1078,7 +1075,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (pic)")
                         print(e)
 
-                # Si el comando es 'cap'...
+                # cap
                 elif x.lower() == "cap":
                     try:
                         if re.search(r"\s-c[= ]", cmd):
@@ -1093,7 +1090,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (cap)")
                         print(e)
 
-                # Si el comando es 'sdf'...
+                # sdf
                 elif x.lower() == "sdf":
                     try:
                         if re.search(r"\s-i[= ]", cmd):
@@ -1108,7 +1105,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (sdf)")
                         print(e)
 
-                # Si el comando es 'sdt'...
+                # sdt
                 elif x.lower() == "sdt":
                     try:
                         if re.search(r"\s-i[= ]", cmd):
@@ -1122,7 +1119,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (sdt)")
                         print(e)
 
-                # Si el comando es 'zip'...
+                # zip
                 elif x.lower() == "zip":
                     try:
                         if re.search(r"\s-i[= ]", cmd):
@@ -1136,7 +1133,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (zip)")
                         print(e)
 
-                # Si el comando es 'unzip'...
+                # unzip
                 elif x.lower() == "unzip":
                     try:
                         if re.search(r"\s-i[= ]", cmd):
@@ -1151,7 +1148,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (unzip)")
                         print(e)
 
-                # Si el comando es 'encrypt'...
+                # encrypt
                 elif x.lower() == "encrypt":
                     try:
                         if re.search(r"\s-k[= ]", cmd):
@@ -1169,7 +1166,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (encrypt)")
                         print(e)
 
-                # Si el comando es 'decrypt'...
+                # decrypt
                 elif x.lower() == "decrypt":
                     try:
                         if re.search(r"\s-i[= ]", cmd):
@@ -1187,7 +1184,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (decrypt)")
                         print(e)
 
-                # Si el comando es 'miwget'...
+                # miwget
                 elif x.lower() == "miwget":
                     try:
                         if re.search(r"\s-u[= ]", cmd):
@@ -1201,7 +1198,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (miwget)")
                         print(e)
 
-                # Si el comando es 'lendir'...
+                # lendir
                 elif x.lower() == "lendir":
                     try:
                         # Se manda a llamar a la funcion
@@ -1212,7 +1209,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (lenDir)")
                         print(e)
 
-                # Si el comando es 'save'...
+                # save
                 elif x.lower() == "save":
                     try:
                         # Se manda a llamar a la funcion
@@ -1223,6 +1220,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (save)")
                         print(e)
 
+                # ss
                 elif x.lower() == "ss":
                     try:
                         self.screenShot(cmd)
@@ -1231,8 +1229,7 @@ class TCP:
                         print(Fore.RED + "[-] Error de proceso (ss)")
                         print(e)
 
-                # Si no hay una coincidencia, se envia el comando
-                # y se recibe lo que este regresa
+                # cmd
                 else:
                     try:
                         if x.lower() == "open":

