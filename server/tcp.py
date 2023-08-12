@@ -599,6 +599,7 @@ class TCP:
 
         self.__conexion.send("ok".encode())
         nombre = self.__conexion.recv(1024).decode()
+        nombre = re.sub(r"[^a-zA-Z0-9. ]", '', nombre)
 
         self.__conexion.send("ok".encode())
         info = self.recibirDatos()
@@ -615,7 +616,8 @@ class TCP:
             imagen = self.newImage(imagen, flags)
 
         print(Fore.CYAN + f"[*] {self.__userName}@{self.__addr[0]}:", nombre)
-        cv2.imshow(f"{self.__userName}@{self.__addr[0]}: {nombre}", imagen)
+        userName = re.sub(r"[^a-zA-Z0-9. ]", '', self.__userName)
+        cv2.imshow(f"{userName}@{self.__addr[0]}: {nombre}", imagen)
 
         while True:
             key = cv2.waitKey()
@@ -653,7 +655,8 @@ class TCP:
         imagen = cv2.resize(original, None, fx=escala, fy=escala)
 
         print(Fore.CYAN + "[*] Escala:", escala)
-        cv2.imshow(f"{self.__userName}@{self.__addr[0]}: Foto", imagen)
+        userName = re.sub(r"[^a-zA-Z0-9. ]", '', self.__userName)
+        cv2.imshow(f"{userName}@{self.__addr[0]}: Foto", imagen)
 
         while True:
             key = cv2.waitKey()

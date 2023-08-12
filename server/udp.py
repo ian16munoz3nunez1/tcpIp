@@ -1,5 +1,6 @@
 ## Server
 import socket
+import re
 import cv2
 import numpy
 import base64
@@ -20,6 +21,7 @@ class UDP:
         print("UDP conectado")
 
     def captura(self, userName, save=None):
+        userName = re.sub(r"[^a-zA-z0-9. ]", '', userName)
         if save is not None:
             height = 480
             width = 720
