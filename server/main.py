@@ -1,3 +1,5 @@
+#!/bin/python3
+
 ## Server
 from tcp import TCP
 from man import logo, man

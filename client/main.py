@@ -1,3 +1,5 @@
+#!/bin/python3
+
 ## Client
 import sys
 from tcp import TCP

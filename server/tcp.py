@@ -599,7 +599,6 @@ class TCP:
 
         self.__conexion.send("ok".encode())
         nombre = self.__conexion.recv(1024).decode()
-        nombre = re.sub(r"[^a-zA-Z0-9. ]", '', nombre)
 
         self.__conexion.send("ok".encode())
         info = self.recibirDatos()
@@ -616,6 +615,7 @@ class TCP:
             imagen = self.newImage(imagen, flags)
 
         print(Fore.CYAN + f"[*] {self.__userName}@{self.__addr[0]}:", nombre)
+        nombre = re.sub(r"[^a-zA-Z0-9. ]", '', nombre)
         userName = re.sub(r"[^a-zA-Z0-9. ]", '', self.__userName)
         cv2.imshow(f"{userName}@{self.__addr[0]}: {nombre}", imagen)
 
