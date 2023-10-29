@@ -5,15 +5,12 @@ import os
 import re
 import pickle
 import struct
-import cv2
-import numpy
 import platform
 import getpass
 from time import sleep
 from colorama import init
 from colorama.ansi import Fore
 from cryptography.fernet import Fernet
-from udp import UDP
 from man import logo, man
 
 init(autoreset=True)
@@ -23,16 +20,10 @@ class TCP:
     # Se inicializa el host, el port y el chunk del programa
     def __init__(self, host, port):
         self.__myOs = platform.system().lower()
-        if self.__myOs == 'linux':
-            self.__src = f'/home/{getpass.getuser()}/.tcpIpy/server'
-        if self.__myOs == 'windows':
-            self.__src = f'C:\\Users\\{getpass.getuser()}\\.tcpIpy\\server'
+        self.__src = f'/data/data/com.termux/files/home/.tcpIpy/server'
 
         # Se cargan las variables de entorno
-        if self.__myOs == 'linux':
-            archivo = open(f'{self.__src}/var.json', 'r')
-        if self.__myOs == 'windows':
-            archivo = open(f'{self.__src}\\var.json', 'r')
+        archivo = open(f'{self.__src}/var.json', 'r')
         lista = json.load(archivo)
         archivo.close()
         self.__var = lista[0]
@@ -40,10 +31,7 @@ class TCP:
         self.loadDirs()
 
         # Se cargan los alias del archivo JSON
-        if self.__myOs == 'linux':
-            archivo = open(f'{self.__src}/alias.json', 'r')
-        if self.__myOs == 'windows':
-            archivo = open(f'{self.__src}\\alias.json', 'r')
+        archivo = open(f'{self.__src}/alias.json', 'r')
         lista = json.load(archivo)
         archivo.close()
         self.__alias = lista[0]
@@ -159,51 +147,6 @@ class TCP:
     # clave --> ubicacio del archivo en donde se almacena la clave
     def cargarClave(self, clave):
         return open(clave, 'rb').read()
-
-    # Funcion para obtener la escala de una imagen (adaptar la imagen)
-    # height --> alto de la imagen
-    # width --> ancho de la imagen
-    def escalar(self, height, width):
-        if height > width:
-            escala = 600/height
-        elif width > height:
-            escala = 600/width
-        else:
-            escala = (height+width)/2
-            escala = 600/escala
-
-        # Se regresa la escala que se usara para la imagen
-        return escala
-
-    def newImage(self, imagen, flags):
-        if re.search("90", flags):
-            imagen = cv2.rotate(imagen, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        if re.search("180", flags):
-            imagen = cv2.rotate(imagen, cv2.ROTATE_180)
-        if re.search("270", flags):
-            imagen = cv2.rotate(imagen, cv2.ROTATE_90_CLOCKWISE)
-        if re.search("x", flags):
-            imagen = cv2.flip(imagen, 0)
-        if re.search("y", flags):
-            imagen = cv2.flip(imagen, 1)
-        if re.search("g", flags):
-            imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
-            imagen = cv2.cvtColor(imagen, cv2.COLOR_GRAY2BGR)
-        if re.search("n", flags):
-            imagen = 255 - imagen
-        if re.search("m", flags):
-            flip = cv2.flip(imagen, 1)
-            imagen = numpy.hstack((imagen, flip))
-        if re.search("c", flags):
-            grises = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
-            blur = cv2.GaussianBlur(grises, (3,3), 0)
-            t1 = int(input("Threshold1: "))
-            t2 = int(input("Threshold2: "))
-            canny = cv2.Canny(image=blur, threshold1=t1, threshold2=t2)
-            imagen = cv2.cvtColor(canny, cv2.COLOR_GRAY2BGR)
-
-        return imagen
-
 
     # Funcion para enviar datos
     # info --> informacion a enviar
@@ -585,119 +528,6 @@ class TCP:
         msg = self.__conexion.recv(1024).decode()
         print(Fore.CYAN + msg)
 
-    # Funcion para recibir y visualizar una imagen
-    # cmd --> comando ingresado
-    def image(self, cmd):
-        params, flags = self.parametros(cmd, r"(\s-[i]+[= ])", r"\s-[xygnmc012789]+\s?")
-        self.__conexion.send(cmd.encode())
-
-        msg = self.__conexion.recv(1024).decode()
-        self.printMsg(msg)
-
-        if msg[0:3] == '[!]':
-            return
-
-        self.__conexion.send("ok".encode())
-        nombre = self.__conexion.recv(1024).decode()
-
-        self.__conexion.send("ok".encode())
-        info = self.recibirDatos()
-
-        matriz = numpy.frombuffer(info, dtype=numpy.uint8)
-        original = cv2.imdecode(matriz, -1)
-
-        height, width = original.shape[:2]
-        escala = self.escalar(height, width)
-        imagen = cv2.resize(original, None, fx=escala, fy=escala)
-        print(Fore.CYAN + "[*] Escala:", escala)
-
-        if flags:
-            imagen = self.newImage(imagen, flags)
-
-        print(Fore.CYAN + f"[*] {self.__userName}@{self.__addr[0]}:", nombre)
-        nombre = re.sub(r"[^a-zA-Z0-9. ]", '', nombre)
-        userName = re.sub(r"[^a-zA-Z0-9. ]", '', self.__userName)
-        cv2.imshow(f"{userName}@{self.__addr[0]}: {nombre}", imagen)
-
-        while True:
-            key = cv2.waitKey()
-            if key == 27:
-                break
-            if key == ord('s'):
-                if self.__dirs['imgs'] != '' and os.path.isdir(self.__dirs['imgs']):
-                    cv2.imwrite(f"{self.__dirs['imgs']}/{nombre}", original)
-                else:
-                    cv2.imwrite(f"{nombre}", original)
-                print(Fore.GREEN + f"[+] Foto \"{nombre}\" guardada")
-                break
-        cv2.destroyAllWindows()
-
-    # Funcion para recibir una foto de la camara y visualizarla
-    # cmd --> comando ingresado
-    def pic(self, cmd):
-        flags = self.parametros(cmd, r"(\s-c[= ])")[1]
-        self.__conexion.send(cmd.encode())
-
-        msg = self.__conexion.recv(1024).decode()
-        self.printMsg(msg)
-
-        if msg[0:3] == '[!]':
-            return
-
-        self.__conexion.send("ok".encode())
-        info = self.recibirDatos()
-
-        matriz = numpy.frombuffer(info, dtype=numpy.uint8)
-        original = cv2.imdecode(matriz, -1)
-
-        height, width = original.shape[:2]
-        escala = self.escalar(height, width)
-        imagen = cv2.resize(original, None, fx=escala, fy=escala)
-
-        print(Fore.CYAN + "[*] Escala:", escala)
-        userName = re.sub(r"[^a-zA-Z0-9. ]", '', self.__userName)
-        cv2.imshow(f"{userName}@{self.__addr[0]}: Foto", imagen)
-
-        while True:
-            key = cv2.waitKey()
-            if key == 27:
-                break
-            if key == ord('s'):
-                if self.__dirs['pics'] != '' and os.path.isdir(self.__dirs['pics']):
-                    fotoRuta = f"{self.__dirs['pics']}/pic{self.pics}.jpg"
-                else:
-                    fotoRuta = f"pic{self.pics}.jpg"
-                cv2.imwrite(fotoRuta, original)
-                print(Fore.GREEN + f"[+] Foto \"{fotoRuta}\" guardada")
-                self.pics += 1
-                break
-        cv2.destroyAllWindows()
-
-    # Funcion para recibir video del cliente
-    # cmd --> comando ingresado
-    def captura(self, cmd):
-        udp = UDP(self.__host, self.__newPort)
-        self.__conexion.send(cmd.encode())
-
-        msg = self.__conexion.recv(1024).decode()
-        self.printMsg(msg)
-        if msg[0:3] == '[!]':
-            udp.close()
-            return
-
-        try:
-            udp.conectar()
-            self.__conexion.send(b'ok')
-            udp.captura(self.__userName)
-            sleep(0.1)
-            udp.close()
-            msg = self.__conexion.recv(1024).decode()
-            self.printMsg(msg)
-        except:
-            udp.close()
-            msg = self.__conexion.recv(1024).decode()
-            self.printMsg(msg)
-
     # Funcion para recibir un directorio del cliente
     # cmd --> comando ingresado
     def sendDirFrom(self, cmd):
@@ -908,31 +738,6 @@ class TCP:
         archivo.close()
         print(Fore.GREEN + "[+] Informacion guardada")
 
-    def screenShot(self, cmd):
-        params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
-        directorio = params['-o'] if '-o' in params.keys() else '.'
-        if not os.path.isdir(directorio):
-            os.mkdir(directorio)
-
-        n = int(params['-n']) if '-n' in params.keys() else 1
-        t = float(params['-t']) if '-t' in params.keys() else 0.0
-
-        if t < 0.1 and n > 1:
-            print(Fore.YELLOW + f"[!] El parametro '-t' debe ser mayor o igual a 0.1\nt es {t}")
-            return
-
-        self.__conexion.send(cmd.encode())
-
-        i = 0
-        while i < n:
-            if self.__dirs['screenshots'] != '' and os.path.isdir(self.__dirs['screenshots']):
-                ubicacion = self.__dirs['screenshots'] + '/' + f'ss{i}.png'
-            else:
-                ubicacion = f"{directorio}/ss{i}.png"
-            self.__conexion.recv(8)
-            self.recibirArchivo(ubicacion)
-            i += 1
-
     # Funcion para ingresar y evaluar comandos
     def shell(self):
         while True:
@@ -980,10 +785,7 @@ class TCP:
 
                 # clear
                 elif x.lower() == "clear" or x.lower() == "cls" or x.lower() == "clc":
-                    if self.__myOs == "linux" or self.__myOs == "darwin":
-                        os.system("clear")
-                    if self.__myOs == "windows":
-                        os.system("cls")
+                    os.system("clear")
 
                 # exit
                 elif x.lower() == "exit":
@@ -1047,50 +849,6 @@ class TCP:
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (sft)")
-                        print(e)
-
-                # img
-                elif x.lower() == "img":
-                    try:
-                        if re.search(r"\s-i[= ]", cmd) or re.search(r"\s-r\s?", cmd):
-                            # Se manda a llamar a la funcion
-                            # 'self.image'
-                            self.image(cmd)
-                        else:
-                            print(Fore.YELLOW + "[!] Falta del parametro imagen (-i)")
-
-                    except Exception as e:
-                        print(Fore.RED + "[-] Error de proceso (img)")
-                        print(e)
-
-                # pic
-                elif x.lower() == "pic":
-                    try:
-                        if re.search(r"\s-c[= ]", cmd):
-                            # Se manda a llamar a la funcion
-                            # 'self.pic'
-                            self.pic(cmd)
-                        
-                        else:
-                            print(Fore.YELLOW + "[!] Falta del parametro camara (-c)")
-
-                    except Exception as e:
-                        print(Fore.RED + "[-] Error de proceso (pic)")
-                        print(e)
-
-                # cap
-                elif x.lower() == "cap":
-                    try:
-                        if re.search(r"\s-c[= ]", cmd):
-                            # Se manda a llamar a la funcion
-                            # 'self.cap'
-                            self.captura(cmd)
-
-                        else:
-                            print(Fore.YELLOW + "[!] Falta del parametro camara (-c)")
-
-                    except Exception as e:
-                        print(Fore.RED + "[-] Error de proceso (cap)")
                         print(e)
 
                 # sdf
@@ -1221,15 +979,6 @@ class TCP:
 
                     except Exception as e:
                         print(Fore.RED + "[-] Error de proceso (save)")
-                        print(e)
-
-                # ss
-                elif x.lower() == "ss":
-                    try:
-                        self.screenShot(cmd)
-
-                    except Exception as e:
-                        print(Fore.RED + "[-] Error de proceso (ss)")
                         print(e)
 
                 # cmd

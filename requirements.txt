@@ -1,8 +1,5 @@
-opencv-contrib-python
 colorama
 cryptography
 requests
-pyscreenshot
 pillow
-pyinstaller
 

