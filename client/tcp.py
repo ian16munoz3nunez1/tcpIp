@@ -10,7 +10,6 @@ import platform
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
-from cryptography.fernet import Fernet
 from random import randint
 
 # Clase client-TCP

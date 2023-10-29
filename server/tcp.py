@@ -10,7 +10,6 @@ import getpass
 from time import sleep
 from colorama import init
 from colorama.ansi import Fore
-from cryptography.fernet import Fernet
 from man import logo, man
 
 init(autoreset=True)
