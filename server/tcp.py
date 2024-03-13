@@ -13,7 +13,6 @@ from time import sleep
 from colorama import init
 from colorama.ansi import Fore
 from cryptography.fernet import Fernet
-from udp import UDP
 from man import logo, man
 
 init(autoreset=True)
@@ -673,31 +672,6 @@ class TCP:
                 break
         cv2.destroyAllWindows()
 
-    # Funcion para recibir video del cliente
-    # cmd --> comando ingresado
-    def captura(self, cmd):
-        udp = UDP(self.__host, self.__newPort)
-        self.__conexion.send(cmd.encode())
-
-        msg = self.__conexion.recv(1024).decode()
-        self.printMsg(msg)
-        if msg[0:3] == '[!]':
-            udp.close()
-            return
-
-        try:
-            udp.conectar()
-            self.__conexion.send(b'ok')
-            udp.captura(self.__userName)
-            sleep(0.1)
-            udp.close()
-            msg = self.__conexion.recv(1024).decode()
-            self.printMsg(msg)
-        except:
-            udp.close()
-            msg = self.__conexion.recv(1024).decode()
-            self.printMsg(msg)
-
     # Funcion para recibir un directorio del cliente
     # cmd --> comando ingresado
     def sendDirFrom(self, cmd):
@@ -907,31 +881,6 @@ class TCP:
                     break
         archivo.close()
         print(Fore.GREEN + "[+] Informacion guardada")
-
-    def screenShot(self, cmd):
-        params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
-        directorio = params['-o'] if '-o' in params.keys() else '.'
-        if not os.path.isdir(directorio):
-            os.mkdir(directorio)
-
-        n = int(params['-n']) if '-n' in params.keys() else 1
-        t = float(params['-t']) if '-t' in params.keys() else 0.0
-
-        if t < 0.1 and n > 1:
-            print(Fore.YELLOW + f"[!] El parametro '-t' debe ser mayor o igual a 0.1\nt es {t}")
-            return
-
-        self.__conexion.send(cmd.encode())
-
-        i = 0
-        while i < n:
-            if self.__dirs['screenshots'] != '' and os.path.isdir(self.__dirs['screenshots']):
-                ubicacion = self.__dirs['screenshots'] + '/' + f'ss{i}.png'
-            else:
-                ubicacion = f"{directorio}/ss{i}.png"
-            self.__conexion.recv(8)
-            self.recibirArchivo(ubicacion)
-            i += 1
 
     # Funcion para ingresar y evaluar comandos
     def shell(self):

