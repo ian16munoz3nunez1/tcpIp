@@ -1,8 +1,8 @@
-#!/bin/python3
+#!python3
 
 ## Server
-from tcp import TCP
-from man import logo, man
+from server.tcp import TCP
+from server.man import logo, man
 import sys
 from colorama import init
 from colorama.ansi import Fore

@@ -13,8 +13,8 @@ from time import sleep
 from colorama import init
 from colorama.ansi import Fore
 from cryptography.fernet import Fernet
-from udp import UDP
-from man import logo, man
+from server.udp import UDP
+from server.man import logo, man
 
 init(autoreset=True)
 
@@ -944,7 +944,7 @@ class TCP:
 
                     # Se revisa si el comando esta en los alias
                     if x in self.__alias.keys():
-                        cmd = re.sub(f"^{x}\s?", self.__alias[x], cmd) # Se sustituye el alias en el comando
+                        cmd = re.sub(f"^{x}\\s?", self.__alias[x], cmd) # Se sustituye el alias en el comando
                         x = re.match(r"^!?\w+", cmd)[0] # Se obtiene el comando de nuevo
 
                 except:

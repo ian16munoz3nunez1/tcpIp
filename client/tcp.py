@@ -14,7 +14,7 @@ from subprocess import Popen, PIPE
 from zipfile import ZipFile
 from cryptography.fernet import Fernet
 from random import randint
-from udp import UDP
+from client.udp import UDP
 
 # Clase client-TCP
 class TCP:
@@ -717,7 +717,7 @@ class TCP:
                 i += 1
 
             if valido:
-                nombre = re.findall(f"/([\W\w]+[.]{ext})", url)[0]
+                nombre = re.findall(f"/([\\W\\w]+[.]{ext})", url)[0]
                 nombre = nombre.split('/')[-1]
 
         if valido:

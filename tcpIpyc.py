@@ -1,9 +1,9 @@
-#!/bin/python3
+#!python3
 
 ## Client
 import sys
-from tcp import TCP
-from man import logo, man
+from client.tcp import TCP
+from client.man import logo, man
 
 if len(sys.argv) == 1:
     host = "127.0.0.1"
